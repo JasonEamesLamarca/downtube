@@ -11,7 +11,7 @@ def sel(info, cap, **kw) -> Selection:
     return r
 
 
-# Mandatory resolution table (MasterPrompt §17): never upscale, never exceed the cap.
+# Mandatory resolution table (project specification): never upscale, never exceed the cap.
 @pytest.mark.parametrize(
     ("source", "limit", "expected"),
     [
