@@ -55,6 +55,6 @@ def clear_cookie(response: Response) -> None:
 
 def cleanup_expired(s: Session) -> tuple[int, int]:
     now = datetime.now(UTC)
-    a = s.execute(delete(WebSession).where(WebSession.expires_at < now)).rowcount
-    b = s.execute(delete(OAuthState).where(OAuthState.expires_at < now)).rowcount
+    a = getattr(s.execute(delete(WebSession).where(WebSession.expires_at < now)), "rowcount", 0)
+    b = getattr(s.execute(delete(OAuthState).where(OAuthState.expires_at < now)), "rowcount", 0)
     return a or 0, b or 0

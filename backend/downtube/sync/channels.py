@@ -109,6 +109,7 @@ def _process_items(
         if rule is None:
             return res
         cutoff = _aware(min_published)
+        video: Video | None
         for vid, published in entries:
             if vid in fetched:
                 video = common.upsert_video(s, video_from_api(fetched[vid]))

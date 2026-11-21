@@ -84,9 +84,9 @@ def sync_subscriptions(
             by_id = {c["id"]: c for c in yt.channels(chunk)}
             with write_session() as s:
                 for cid in chunk:
-                    ch = s.get(Channel, cid)
-                    if ch is not None and cid in by_id:
-                        apply_channel_resource(ch, by_id[cid])
+                    ch2 = s.get(Channel, cid)
+                    if ch2 is not None and cid in by_id:
+                        apply_channel_resource(ch2, by_id[cid])
         return common.finish_run(run_id, SyncStatus.ok, items_seen=seen, items_new=new, quota_used=yt.units_used)
     except QuotaExceeded as e:
         return common.finish_run(

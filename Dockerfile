@@ -47,7 +47,7 @@ COPY --from=deno /deno /usr/local/bin/deno
 # NOTE: setuptools rejects paths outside the project dir, so backend/pyproject.toml
 # must not reference ../README.md (currently does; must be fixed in backend/).
 COPY backend /tmp/src/backend
-RUN pip install --no-cache-dir --root-user-action=ignore /tmp/src/backend "yt-dlp[default]==${YTDLP_VERSION}" \
+RUN pip install --no-cache-dir --root-user-action=ignore --upgrade pip && pip install --no-cache-dir --root-user-action=ignore /tmp/src/backend "yt-dlp[default]==${YTDLP_VERSION}" \
  && rm -rf /tmp/src
 
 COPY --from=frontend /build/dist /app/static

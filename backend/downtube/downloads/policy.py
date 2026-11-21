@@ -52,7 +52,7 @@ class Fmt:
 
     @property
     def is_hdr(self) -> bool:
-        return bool(self.dynamic_range) and self.dynamic_range.upper() != "SDR"
+        return self.dynamic_range is not None and self.dynamic_range.upper() not in ("", "SDR")
 
     @property
     def vfamily(self) -> str:

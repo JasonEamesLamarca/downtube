@@ -68,7 +68,8 @@ def _counts(db: Session, user_id: int, channel_ids: list[str]) -> dict[str, dict
         .where(Video.channel_id.in_(channel_ids), Video.id.in_(mine))
         .group_by(Video.channel_id)
     ):
-        out[cid]["archived"] = n
+        if cid is not None:
+            out[cid]["archived"] = n
     for cid, status, n in db.execute(
         select(Video.channel_id, DownloadJob.status, func.count(distinct(DownloadJob.video_id)))
         .join(Video, Video.id == DownloadJob.video_id)
@@ -78,7 +79,7 @@ def _counts(db: Session, user_id: int, channel_ids: list[str]) -> dict[str, dict
         key = {JobStatus.queued: "queued", JobStatus.paused: "queued", JobStatus.running: "downloading"}.get(
             status, "failed" if status == JobStatus.failed else None
         )
-        if key:
+        if key and cid is not None:
             out[cid][key] += n
     return out
 
