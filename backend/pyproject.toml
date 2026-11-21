@@ -55,7 +55,7 @@ select = ["E", "F", "W", "I", "B", "UP", "S", "BLE"]
 ignore = ["S101", "S603", "S607", "B008"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S", "B"]
+"tests/**" = ["S", "B", "F811", "E731"]
 "downtube/migrations/**" = ["E501", "I"]
 
 [tool.mypy]
