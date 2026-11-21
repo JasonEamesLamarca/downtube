@@ -26,7 +26,7 @@ SQLite (WAL) at /data/downtube.db  ·  temp at /temp  ·  archive at /archive (b
 | Module | Owner (build phase) | Purpose |
 |---|---|---|
 | `config.py`, `db.py`, `models.py`, `schemas.py`, `settings_service.py`, `security/crypto.py`, `migrations/` | foundation (lead) | shared; others must not change signatures without the lead |
-| `storage/` | download agent | path safety, naming, disk space, browse |
+| `storage/paths.py`, `downloads/jobs.py` | foundation (lead) | path safety/naming/browse; queue ops: `enqueue`, `compute_effective_cap`, cancel/pause/resume/retry, control signals |
 | `downloads/` | download agent | policy, yt-dlp adapter, validator, job manager |
 | `auth/`, `youtube/`, `sync/`, `scheduler.py`, `api/` | backend agent | OAuth, API client, sync engines, REST |
 | `frontend/` | frontend agent | React SPA |
@@ -101,6 +101,18 @@ def sync_subscriptions(user_id, trigger) -> SyncRun
 def sync_channel(user_id, channel_id, trigger) -> SyncRun
 def refresh_stale_metadata(max_age_days=25)               # API data retention: refresh or purge before 30 days
 ```
+
+### 3a. Implemented shared modules (read the code — it is the contract)
+
+* `downloads/jobs.py`: `enqueue(s, video_id, *, user_id, priority, max_height=None)`,
+  `compute_effective_cap`, `needs_upgrade`, `cancel_job/pause_job/resume_job/retry_job` (raise
+  `JobStateError`), worker control: `signal/pop_signal/peek_signal(job_id)` ("cancel"|"pause"),
+  `set_wake_callback(fn)` / `wake()`. A running job is stopped by the worker when it sees a signal.
+* `storage/paths.py`: `resolve_within_mounts`, `safe_join`, `sanitize_component`,
+  `channel_folder_name`, `video_basename/video_filename`, `disk_usage`, `has_space_for`, `is_writable`, `browse`.
+* `downloads/manager.py` must expose module functions `startup()`, `shutdown()`, `get_manager()`,
+  and set `runtime_status` flags `worker` and `archive_writable`. `scheduler.py` exposes
+  `start()`, `stop()`, `reschedule()` and sets flag `scheduler`.
 
 ## 4. Download job state machine
 
