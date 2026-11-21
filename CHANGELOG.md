@@ -5,6 +5,14 @@ All notable changes to DownTube are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2026-11-21
+
+### Fixed
+
+- Log redaction no longer breaks uvicorn access-log lines. A request whose URL contained a secret
+  (for example the OAuth `code` on `/api/auth/callback`) printed a "Logging error" traceback instead
+  of the access line. Secrets were always redacted; only the log line was lost.
+
 ## [0.2.0] - 2026-11-21
 
 ### Added
