@@ -101,7 +101,8 @@ Create a `.env` file next to `docker-compose.yml`. Never commit this file.
 | `DOWNTUBE_BASE_URL` | Yes | `http://localhost:8092` | Public origin of the app. Must match the redirect URI origin exactly. |
 | `DOWNTUBE_ALLOWED_EMAILS` | Yes | none | Comma-separated Google accounts allowed to sign in. Removing an address revokes that user's sessions and stops their background syncs. |
 | `DOWNTUBE_ADMIN_EMAILS` | No | none | Comma-separated administrators. If unset, the first account to sign in becomes admin. Admins change settings and the storage root. |
-| `FORWARDED_ALLOW_IPS` | No | `127.0.0.1` | Reverse-proxy address(es) whose `X-Forwarded-For` header is trusted (client IPs for rate limiting and audit logs). |
+| `DOWNTUBE_TRUSTED_PROXIES` | No | `127.0.0.1/32` | Reverse proxies (CIDRs) whose `X-Real-IP`, `X-Forwarded-For` and `X-Forwarded-Proto` headers are trusted. Behind Synology DSM with the port bound to `127.0.0.1`, use `172.16.0.0/12`. |
+| `DOWNTUBE_BIND` | No | `0.0.0.0` | Host address the port is published on. Use `127.0.0.1` behind a reverse proxy on the same host. |
 | `DOWNTUBE_DATA_DIR` | No | `/data` | Database location in the container. |
 | `DOWNTUBE_TEMP_DIR` | No | `/temp` | Partial downloads. |
 | `DOWNTUBE_LOG_DIR` | No | `/logs` | Log files. |

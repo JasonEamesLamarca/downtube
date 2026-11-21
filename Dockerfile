@@ -94,8 +94,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
 # tini reaps yt-dlp/ffmpeg child processes and forwards signals to uvicorn.
 ENTRYPOINT ["/usr/bin/tini", "--"]
 # Single worker by design: the download manager and scheduler live in-process.
-# X-Forwarded-* headers are trusted only from FORWARDED_ALLOW_IPS (read by uvicorn).
-# Set it to your reverse proxy's address (e.g. the proxy container's IP) when using one.
-ENV FORWARDED_ALLOW_IPS=127.0.0.1
+# Forwarded headers are handled by DownTube itself (DOWNTUBE_TRUSTED_PROXIES), not by uvicorn.
 CMD ["uvicorn", "downtube.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8092", \
-     "--workers", "1", "--proxy-headers"]
+     "--workers", "1", "--no-proxy-headers"]

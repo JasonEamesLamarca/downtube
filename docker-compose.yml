@@ -12,7 +12,7 @@ services:
     restart: unless-stopped
     ports:
       # Host port is configurable; the container always listens on 8092.
-      - "${DOWNTUBE_PORT:-8092}:8092"
+      - "${DOWNTUBE_BIND:-0.0.0.0}:${DOWNTUBE_PORT:-8092}:8092"
     env_file:
       - .env
     # Run as a fixed non-root uid/gid. Host folders below must be owned by PUID:PGID.
