@@ -47,7 +47,9 @@ def test_retries_5xx_with_backoff_then_succeeds(yt):
             side_effect=[httpx.Response(503), httpx.Response(429), httpx.Response(200, json={"items": []})]
         )
         assert yt.videos(["abc"]) == []
-    assert len(yt.sleeps) == 2 and yt.sleeps[1] > yt.sleeps[0] * 0.9  # growing (jittered) delays
+    # exponential base 2**attempt (attempts 1, 2) with ±50 % jitter
+    assert len(yt.sleeps) == 2
+    assert 1.0 <= yt.sleeps[0] <= 3.0 and 2.0 <= yt.sleeps[1] <= 6.0
     assert yt.units_used == 3
 
 
