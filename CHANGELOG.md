@@ -5,6 +5,34 @@ All notable changes to DownTube are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-11-21
+
+### Added
+
+- First-run setup page (`/setup`) for the Google sign-in client, the allowed Google accounts and
+  the administrators. Setup mode stays active until sign-in is configured.
+- One-time setup code, printed in the container log at every start until setup is complete.
+- Settings → Google sign-in & access (administrators) to change the sign-in client and the allowlist later.
+- `DOWNTUBE_TRUSTED_PROXIES` and `DOWNTUBE_BIND` for reverse-proxy deployments.
+- Synology guide section on public HTTPS through the DSM reverse proxy.
+- `deploy/deploy_nas.sh`, an SSH deployment script for Synology DSM and Linux Docker hosts.
+
+### Changed
+
+- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `DOWNTUBE_ALLOWED_EMAILS` are optional. When set,
+  they take precedence over the setup page and are read-only in the UI.
+- Client address and scheme headers are honoured only from trusted proxies. Plain-HTTP requests
+  forwarded by a trusted proxy are redirected to the HTTPS base URL.
+- The OpenAPI documentation (`/api/docs`, `/api/openapi.json`) requires sign-in.
+
+### Security
+
+- Setup code stored only as a SHA-256 hash, single use, invalidated after 20 wrong attempts until
+  restart, with 10 setup requests per minute per IP address.
+- The Google client secret entered in the app is encrypted at rest (Fernet).
+- `Strict-Transport-Security` is sent when the base URL is HTTPS.
+- API documentation is no longer public.
+
 ## [0.1.0] - 2026-11-21
 
 ### Added

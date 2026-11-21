@@ -5,15 +5,16 @@ This guide describes a generic setup on Synology DSM 7 with Container Manager. N
 
 DownTube is not affiliated with or endorsed by Google or YouTube.
 
-> **Do not expose DownTube to the internet.** Use your LAN, a VPN such as Tailscale, or an
-> authenticated HTTPS reverse proxy. See [Reverse proxy and HTTPS](#reverse-proxy-and-https).
+> **Keep DownTube off the open internet unless you mean to.** Use your LAN or a VPN such as
+> Tailscale by default. Public HTTPS through the DSM reverse proxy is described in
+> [Public HTTPS with DSM reverse proxy](#public-https-with-dsm-reverse-proxy).
 
 ## Prerequisites
 
 - DSM 7.2 or later with **Container Manager** installed from the Package Center.
 - A shared folder for the archive, for example `/volume1/video/DownTube`.
 - A Google Cloud OAuth client. Follow [installation.md](installation.md#4-create-the-oauth-client)
-  first; you need the client ID and secret.
+  first; you need the client ID and secret, entered later in the setup page.
 - Admin access to DSM.
 
 ## 1. Create a dedicated DSM user
@@ -61,10 +62,8 @@ Create `/volume1/docker/downtube/config/.env`, using your own values:
 
 ```ini
 DOWNTUBE_SECRET_KEY=replace-with-a-64-character-random-hex-string
-GOOGLE_CLIENT_ID=123456789-abc.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=GOCSPX-replace-me
+# Google client ID/secret and allowed accounts: enter them in the setup page (installation.md step 8).
 DOWNTUBE_BASE_URL=http://localhost:8092
-DOWNTUBE_ALLOWED_EMAILS=you@example.com
 DOWNTUBE_HOST_ARCHIVE_PATH=/volume1/video/DownTube
 TZ=UTC
 PUID=1026
@@ -123,33 +122,89 @@ resources. Recommended starting settings:
 - In Container Manager, you can set a CPU and memory limit in the container's settings. Start
   with a memory limit of 2 GB.
 
-## 7. First sign-in
+## 7. First-run setup and sign-in
 
-Open `http://<nas-ip>:8092` from a machine on the same network. Google does not accept a raw IP
-for the redirect, so sign-in only works through an SSH tunnel to `localhost`, or through an HTTPS
+Google does not accept a raw IP for the redirect, so use an SSH tunnel to `localhost` or an HTTPS
 hostname. The usual approach:
 
 ```bash
 ssh -L 8092:localhost:8092 admin@nas.example.com
 ```
 
-Open `http://localhost:8092` in your local browser and follow
-[installation.md](installation.md#8-first-sign-in). You only need the tunnel to sign in or reconnect.
+Open `http://localhost:8092/setup` in your local browser and follow
+[installation.md](installation.md#8-first-run-setup-and-first-sign-in). Get the setup code with
+`docker logs downtube | grep "setup code"`. You only need the tunnel to sign in or reconnect.
 
-## Reverse proxy and HTTPS
+## Public HTTPS with DSM reverse proxy
 
-DSM includes a reverse proxy in **Control Panel > Login Portal > Advanced > Reverse Proxy**.
+Use this to reach DownTube at `https://downtube.example.com` from outside your network. The sign-in
+page then becomes public, so only do it deliberately.
 
-1. Create a rule:
-   - **Source**: protocol HTTPS, hostname `downtube.example.com`, port 443.
-   - **Destination**: protocol HTTP, hostname `localhost`, port `8092`.
-2. Obtain a certificate for `downtube.example.com` in **Control Panel > Security > Certificate**
-   (Let's Encrypt with DNS validation keeps the NAS off the internet).
-3. Set `DOWNTUBE_BASE_URL=https://downtube.example.com` and redeploy the project.
-4. Register `https://downtube.example.com/api/auth/callback` in the Google OAuth client.
+1. **DNS.** At your DNS provider, create a `CNAME` record `downtube.example.com` pointing to your
+   DDNS name (for example `yourname.example-ddns.net`).
+2. **Router.** Forward TCP ports **80** and **443** to the NAS. Do not forward 8092.
+3. **Certificate.** In **Control Panel > Security > Certificate**, add a certificate from Let's Encrypt
+   for `downtube.example.com`. Port 80 must stay forwarded so DSM can answer the ACME challenge.
+   Assign the certificate to the reverse proxy service if DSM does not do it automatically.
+4. **Reverse proxy.** In **Control Panel > Login Portal > Advanced > Reverse Proxy**, create two rules
+   with the same destination, `HTTP` `localhost` port `8092`:
+   - Source `HTTPS`, hostname `downtube.example.com`, port `443`, with **HSTS** enabled.
+   - Source `HTTP`, hostname `downtube.example.com`, port `80`. DownTube answers forwarded plain-HTTP
+     requests with a `308` redirect to HTTPS. DSM still answers the ACME challenges on port 80.
+5. **DownTube configuration.** In the project `.env` (see below), set:
 
-Restrict access to the hostname with a DSM firewall rule, or to your LAN and VPN, so that it is
-not reachable from the internet.
+   ```ini
+   DOWNTUBE_BIND=127.0.0.1
+   DOWNTUBE_BASE_URL=https://downtube.example.com
+   DOWNTUBE_TRUSTED_PROXIES=172.16.0.0/12
+   ```
+
+   `DOWNTUBE_BIND=127.0.0.1` stops direct access to port 8092 from other machines. DSM's proxy reaches
+   the container through the Docker bridge gateway, so DownTube sees that address as the client.
+   `DOWNTUBE_TRUSTED_PROXIES` makes it honour the `X-Real-IP` and `X-Forwarded-Proto` headers that DSM
+   sends. Recreate the project after changing `.env`.
+6. **Google.** Register `https://downtube.example.com/api/auth/callback` in the OAuth client.
+7. **Hairpin NAT.** If devices on your LAN cannot reach `downtube.example.com` when they are on the same
+   network, your router does not support NAT loopback. Add a local DNS record that points
+   `downtube.example.com` to the NAS LAN address. DownTube needs no change for this.
+
+Consider also limiting who can reach the hostname with DSM's firewall.
+
+## Deploying with deploy/deploy_nas.sh
+
+From a computer with key-based SSH access to the NAS, run the script from the repository root:
+
+```bash
+NAS=admin@nas.example.com deploy/deploy_nas.sh
+```
+
+Environment variables (also listed in the script header):
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `NAS` | required | SSH target, `user@host` |
+| `NAS_DIR` | `/volume1/docker/downtube` | App folder on the host |
+| `ARCHIVE_DIR` | none | Host archive folder; created if missing and checked for write access |
+| `COMPOSE_FILE` | `./docker-compose.yml` | Compose file to install |
+| `ENV_TEMPLATE` | `./.env.example` | Template merged into the host `.env` |
+| `IMAGE` | `ghcr.io/jasoneameslamarca/downtube:latest` | Image to run |
+| `SHIP` | `0` | `SHIP=1` builds the image locally and streams it over SSH instead of `docker pull` |
+| `PORT` | `8092` | Port used for the health check |
+
+What the script does:
+
+- **Copies the compose file.** DSM has no `scp`, so files are streamed over SSH.
+- **Merges `.env`.** Existing values on the NAS are kept, keys from the template are added, and an
+  empty `DOWNTUBE_SECRET_KEY` is generated. Keys that exist only on the NAS are kept under
+  `# ---- Local additions`. Secrets are never printed, and the file is mode `600`. Values you set on the
+  NAS (for example in section [Public HTTPS](#public-https-with-dsm-reverse-proxy)) survive later deploys.
+- **Gets the image.** It runs `docker pull`, or with `SHIP=1` streams the image over SSH. Some Synology
+  setups cannot build or pull images on the NAS, so `SHIP=1` is the fallback.
+- **Starts and checks.** It runs `docker compose up -d --no-build` and waits for `/api/health`.
+- **Checks DNS and HTTPS from inside the container.** If it fails, add
+  `dns: [1.1.1.1, 8.8.8.8]` under the `downtube` service in the repository's `docker-compose.yml`
+  (so the next deploy keeps it) and run the script again.
+- **Prints the setup code** if setup is still needed, together with the `/setup` address.
 
 ## Remote access with Tailscale
 
@@ -182,8 +237,8 @@ them, which is slow on a NAS CPU. See [operations.md](operations.md#checking-for
 
 ## Security checklist
 
-- [ ] DownTube is reachable only from the LAN, a VPN, or an authenticated HTTPS proxy.
-- [ ] Router port forwarding does not point to port 8092 or 443 for DownTube.
+- [ ] DownTube is reachable only from the LAN, a VPN, or the HTTPS reverse proxy you chose.
+- [ ] Router forwards only 80 and 443 to the NAS (if public), never 8092.
 - [ ] `.env` is readable only by administrators (`chmod 600`).
-- [ ] `DOWNTUBE_ALLOWED_EMAILS` lists only the accounts you trust.
+- [ ] The allowed Google accounts (setup page or `DOWNTUBE_ALLOWED_EMAILS`) list only accounts you trust.
 - [ ] The DSM user has no administrator rights.

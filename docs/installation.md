@@ -87,22 +87,25 @@ Point a hostname (for example, `downtube.example.com`) at your server, put a rev
 front of DownTube with a valid certificate (for example, from Let's Encrypt), and register
 `https://downtube.example.com/api/auth/callback`. Set `DOWNTUBE_BASE_URL=https://downtube.example.com`.
 Only do this if you can keep the service off the public internet, or protect it with
-authentication at the proxy. See [synology.md](synology.md#reverse-proxy-and-https).
+authentication at the proxy. See [synology.md](synology.md#public-https-with-dsm-reverse-proxy).
 
 ## 5. Configure DownTube
 
-Create a `.env` file next to `docker-compose.yml`. Never commit this file.
+Create a `.env` file next to `docker-compose.yml`. Never commit this file. The Google client
+credentials and the allowed accounts can instead be entered in the setup page (step 8), so you
+can leave them out of `.env`.
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `DOWNTUBE_SECRET_KEY` | Yes | none | At least 32 random characters. Derives the encryption and session keys. Generate with `openssl rand -hex 32`. |
-| `GOOGLE_CLIENT_ID` | Yes | none | OAuth client ID from step 4. |
-| `GOOGLE_CLIENT_SECRET` | Yes | none | OAuth client secret from step 4. |
+| `GOOGLE_CLIENT_ID` | No | none | OAuth client ID from step 4. If set, it wins over the setup page and is read-only in the UI. |
+| `GOOGLE_CLIENT_SECRET` | No | none | OAuth client secret from step 4. Set it together with `GOOGLE_CLIENT_ID`. |
 | `DOWNTUBE_BASE_URL` | Yes | `http://localhost:8092` | Public origin of the app. Must match the redirect URI origin exactly. |
-| `DOWNTUBE_ALLOWED_EMAILS` | Yes | none | Comma-separated Google accounts allowed to sign in. Removing an address revokes that user's sessions and stops their background syncs. |
-| `DOWNTUBE_ADMIN_EMAILS` | No | none | Comma-separated administrators. If unset, the first account to sign in becomes admin. Admins change settings and the storage root. |
-| `DOWNTUBE_TRUSTED_PROXIES` | No | `127.0.0.1/32` | Reverse proxies (CIDRs) whose `X-Real-IP`, `X-Forwarded-For` and `X-Forwarded-Proto` headers are trusted. Behind Synology DSM with the port bound to `127.0.0.1`, use `172.16.0.0/12`. |
-| `DOWNTUBE_BIND` | No | `0.0.0.0` | Host address the port is published on. Use `127.0.0.1` behind a reverse proxy on the same host. |
+| `DOWNTUBE_ALLOWED_EMAILS` | No | none | Comma-separated Google accounts allowed to sign in. If set, it wins over the setup page and is read-only in the UI. Removing an address revokes that user's sessions and stops their background syncs. |
+| `DOWNTUBE_ADMIN_EMAILS` | No | none | Comma-separated administrators. If unset, the first account to sign in becomes admin. Admins change settings, Google sign-in and the storage root. |
+| `DOWNTUBE_TRUSTED_PROXIES` | No | `127.0.0.1/32` | Reverse proxies (CIDRs) whose `X-Real-IP`, `X-Forwarded-For` and `X-Forwarded-Proto` headers are trusted. Behind Synology DSM, use `172.16.0.0/12` (see [synology.md](synology.md#public-https-with-dsm-reverse-proxy)). |
+| `DOWNTUBE_BIND` | No | `0.0.0.0` | Host address the port is published on (compose). Use `127.0.0.1` when only a reverse proxy on the same host should reach DownTube. |
+| `DOWNTUBE_PORT` | No | `8092` | Host port that maps to the container's 8092 (compose only). |
 | `DOWNTUBE_DATA_DIR` | No | `/data` | Database location in the container. |
 | `DOWNTUBE_TEMP_DIR` | No | `/temp` | Partial downloads. |
 | `DOWNTUBE_LOG_DIR` | No | `/logs` | Log files. |
@@ -162,15 +165,33 @@ curl -s http://localhost:8092/api/health
 If the configuration is incomplete (for example, a missing secret), the health endpoint reports
 `degraded`. Check the container logs for the cause.
 
-## 8. First sign-in
+## 8. First-run setup and first sign-in
 
-1. Open <http://localhost:8092> (or your HTTPS URL).
-2. Select **Sign in with Google** and choose an account in `DOWNTUBE_ALLOWED_EMAILS`.
-3. Accept the Google consent screen. If you see the unverified-app warning, see step 3.
-4. The first allowlisted user to sign in becomes **admin**.
-5. Read the rights acknowledgement and accept it. Archiving is blocked until you do.
+If `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` or `DOWNTUBE_ALLOWED_EMAILS` is empty, DownTube starts
+in *setup mode* and serves a setup page:
+
+1. Start the container with those variables empty.
+2. Open `<DOWNTUBE_BASE_URL>/setup` (for example <http://localhost:8092/setup>).
+3. Get the one-time setup code from the container log:
+
+   ```bash
+   docker logs downtube | grep "setup code"
+   ```
+
+   A new code is issued at every start until setup is complete. After 20 wrong attempts the code
+   stops working until the container restarts. The page accepts 10 attempts per minute per IP address.
+4. Register the **redirect URI** shown on the page in your OAuth client (step 4). It must match exactly.
+5. Paste the client ID and client secret, the allowed Google accounts and the administrators, then
+   select **Complete setup**.
+6. Select **Sign in with Google** and choose an account in the allowlist. Accept the consent screen.
+   If you see the unverified-app warning, see step 3.
+7. Read the rights acknowledgement and accept it. Archiving is blocked until you do.
 
 Accounts not on the allowlist are refused, even if they can complete Google sign-in.
+
+Environment variables still work. If you set them, they win over the setup page and are shown
+read-only. After setup, administrators change the sign-in client and the allowed accounts in
+**Settings → Google sign-in & access**.
 
 ## 9. Choose the download directory
 

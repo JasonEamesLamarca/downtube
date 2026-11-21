@@ -31,7 +31,7 @@ DownTube is not affiliated with or endorsed by Google or YouTube.
 - **Download queue.** Retries with backoff, pause/resume/cancel, a download window and
   bandwidth limits, and a free-disk-space guard.
 - **Quota-aware.** Tracks YouTube Data API usage against a daily budget.
-- **Web UI and REST API.** Browse subscriptions, likes, jobs and the library; OpenAPI docs at `/api/docs`.
+- **Web UI and REST API.** Browse subscriptions, likes, jobs and the library; OpenAPI docs at `/api/docs` (signed-in users only).
 
 ## Quick start
 
@@ -43,20 +43,23 @@ The web UI listens on port **8092**.
 
    ```ini
    DOWNTUBE_SECRET_KEY=<at least 32 random characters>
-   GOOGLE_CLIENT_ID=<your client id>
-   GOOGLE_CLIENT_SECRET=<your client secret>
    DOWNTUBE_BASE_URL=http://localhost:8092
-   DOWNTUBE_ALLOWED_EMAILS=you@example.com
    ```
 
-3. Start the container:
+3. Start the container and read the one-time setup code from the log:
 
    ```bash
    docker compose up -d
+   docker logs downtube | grep "setup code"
    ```
 
-4. Open `http://localhost:8092` (or use an SSH tunnel, see the installation guide), sign in
-   with an allowlisted Google account, and acknowledge the rights notice.
+4. Open `http://localhost:8092/setup` (or use an SSH tunnel, see the installation guide). Enter the
+   setup code, paste your Google client ID and secret, and list the allowed Google accounts. The page
+   shows the redirect URI to register in your Google OAuth client.
+5. Sign in with an allowlisted Google account and acknowledge the rights notice.
+
+Environment variables for the Google client and allowed accounts also work, and they take precedence
+over the setup page.
 
 For NAS-specific steps see [docs/synology.md](docs/synology.md).
 

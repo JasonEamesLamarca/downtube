@@ -54,7 +54,7 @@ The frontend (`frontend/`) is a React single-page app that the backend serves as
 
 All routes are under `/api`, return JSON, and use a session cookie. Mutating requests also send
 `X-CSRF-Token`. Errors use `{"error": {"code", "message"}}`. The live, complete description is at
-`/api/docs` (Swagger UI) and `/api/openapi.json`.
+`/api/docs` (Swagger UI) and `/api/openapi.json` (signed-in users only).
 
 | Area | Method and path | Purpose |
 |---|---|---|
