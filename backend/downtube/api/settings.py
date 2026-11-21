@@ -62,7 +62,7 @@ def _checked_root(path: str, create: bool) -> Path:
 
 
 @router.put("/settings", response_model=SettingsOut)
-def write_settings(body: SettingsUpdate, user: User = Depends(current_user)) -> SettingsOut:
+def write_settings(body: SettingsUpdate, user: User = Depends(require_admin)) -> SettingsOut:
     with write_session() as w:
         if body.likes_mode is not None and body.likes_mode != "off" and get_value(w, "likes_mode") != body.likes_mode:
             ensure_acknowledged(user)
@@ -91,7 +91,7 @@ def browse(path: str | None = None, user: User = Depends(current_user)) -> Brows
 
 
 @router.post("/storage/root", response_model=StorageInfo)
-def set_root(body: SetRootRequest, request: Request, user: User = Depends(current_user)) -> StorageInfo:
+def set_root(body: SetRootRequest, request: Request, user: User = Depends(require_admin)) -> StorageInfo:
     """Change the archive root for *new* downloads. Existing archives are never moved."""
     real = _checked_root(body.path, body.create)
     with write_session() as w:

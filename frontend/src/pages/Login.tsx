@@ -3,6 +3,16 @@ import { useSearchParams } from 'react-router-dom';
 const MESSAGES: Record<string, string> = {
   access_denied: 'Google sign-in was cancelled or denied.',
   not_allowed: 'This Google account is not on the allowed list for this DownTube instance.',
+  email_not_allowed: 'This Google account is not on the allowed list for this DownTube instance.',
+  email_not_verified: 'Your Google account email address is not verified.',
+  missing_scope: 'DownTube needs read-only access to your YouTube account. Please sign in again and allow it.',
+  state_expired: 'The sign-in attempt expired. Please try again.',
+  nonce_mismatch: 'The sign-in response could not be verified. Please try again.',
+  invalid_id_token: 'The sign-in response could not be verified. Please try again.',
+  token_exchange_failed: 'Google sign-in failed. Check the OAuth client ID, secret and redirect URI.',
+  oauth_not_configured: 'Google sign-in is not configured on this server (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).',
+  oauth_error: 'Google returned an error during sign-in.',
+  invalid_request: 'The sign-in response was incomplete. Please try again.',
   invalid_state: 'The sign-in attempt expired or was invalid. Please try again.',
 };
 

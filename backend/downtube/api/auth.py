@@ -52,9 +52,7 @@ def callback(
         result = oauth.complete_login(code, state, ip)
     except oauth.OAuthError as e:
         log.info("login failed: %s", e.code)
-        if e.status == 403:
-            raise ApiError(403, e.code, str(e)) from e
-        return _login_error(e.code)
+        return _login_error(e.code)  # browser flow: always land on the login page with a reason
     with write_session() as s:
         raw = sessions.create_session(s, result.user_id, request.headers.get("user-agent"))
     resp = RedirectResponse("/", status_code=302)

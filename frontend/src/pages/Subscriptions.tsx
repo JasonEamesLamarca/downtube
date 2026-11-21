@@ -97,7 +97,8 @@ export default function SubscriptionsPage() {
     onSuccess: () => { setPending(null); setFiltersFor(null); refresh(); },
     onError: async (e, { channel, p }) => {
       if (e instanceof ApiError && e.status === 409 && e.code === 'confirmation_required') {
-        let est: ChannelEstimate | null = isEstimate(e.details) ? e.details : null;
+        const nested = (e.details as { estimate?: unknown } | undefined)?.estimate;
+        let est: ChannelEstimate | null = isEstimate(e.details) ? e.details : isEstimate(nested) ? nested : null;
         if (!est) {
           try { est = await endpoints.estimate(channel.channel_id); } catch { /* ignore */ }
         }

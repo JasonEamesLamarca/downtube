@@ -161,7 +161,7 @@ def test_unverified_email_and_bare_issuer_accepted(client, google):
     _, q = start_login(client)
     google.post(TOKEN_URL).mock(return_value=token_response(q["nonce"], email_verified=False))
     r = client.get("/api/auth/callback", params={"code": "c", "state": q["state"]}, follow_redirects=False)
-    assert r.status_code == 403
+    assert r.status_code == 302 and r.headers["location"] == "/login?error=email_not_verified"
     _, q = start_login(client)
     google.post(TOKEN_URL).mock(return_value=token_response(q["nonce"], iss="accounts.google.com"))
     r = client.get("/api/auth/callback", params={"code": "c", "state": q["state"]}, follow_redirects=False)
@@ -172,7 +172,7 @@ def test_email_not_on_allowlist_is_403(client, google):
     _, q = start_login(client)
     google.post(TOKEN_URL).mock(return_value=token_response(q["nonce"], email="stranger@example.com"))
     r = client.get("/api/auth/callback", params={"code": "c", "state": q["state"]}, follow_redirects=False)
-    assert r.status_code == 403 and r.json()["error"]["code"] == "email_not_allowed"
+    assert r.status_code == 302 and r.headers["location"] == "/login?error=email_not_allowed"
     with read_session() as s:
         assert s.scalar(select(User)) is None
         assert s.scalar(select(AuditEvent).where(AuditEvent.action == "login.denied")) is not None

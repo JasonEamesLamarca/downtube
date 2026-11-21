@@ -24,8 +24,9 @@ itself has no new release.
 
 ## Backup and restore
 
-> **Status:** the built-in scheduled backup described here (daily copies in `/data/backups`,
-> keeping seven) is the intended behaviour. Until it ships, use the manual method below.
+DownTube makes a consistent online copy of its SQLite database every day (SQLite backup API)
+into `/data/backups/`, keeping the newest seven. Back up `/data` (including `backups/`) and your
+`.env` file with your normal NAS backup tool (e.g. Hyper Backup). For an extra manual copy:
 
 ### Manual backup
 
