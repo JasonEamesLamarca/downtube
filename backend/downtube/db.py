@@ -60,8 +60,7 @@ def read_session() -> Iterator[Session]:
     try:
         yield s
     finally:
-        s.rollback()
-        s.close()
+        s.close()  # no rollback: keep loaded attributes usable after the block (expire_on_commit=False)
 
 
 @contextmanager
