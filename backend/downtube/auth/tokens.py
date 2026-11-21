@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 
 import httpx
 
+from downtube import app_config
 from downtube.auth.audit import audit
 from downtube.config import get_config
 from downtube.db import read_session, write_session
@@ -75,11 +76,14 @@ def get_access_token(account_id: int, *, force_refresh: bool = False, http: http
 
 def _refresh(account_id: int, refresh_token: str, http: httpx.Client | None) -> str:
     cfg = get_config()
+    creds = app_config.google_creds()
+    if creds is None:
+        raise TokenRefreshError("Google sign-in is not configured")
     data = {
         "grant_type": "refresh_token",
         "refresh_token": refresh_token,
-        "client_id": cfg.google_client_id,
-        "client_secret": cfg.google_client_secret,
+        "client_id": creds.client_id,
+        "client_secret": creds.client_secret,
     }
     own = http is None
     client = http or httpx.Client(timeout=20)

@@ -17,6 +17,7 @@ from urllib.parse import urlencode
 import httpx
 from sqlalchemy import delete, select
 
+from downtube import app_config
 from downtube.auth.audit import audit
 from downtube.config import get_config
 from downtube.db import read_session, write_session
@@ -54,8 +55,9 @@ def has_refresh_token() -> bool:
 def build_login_url() -> tuple[str, str]:
     """Return (authorization URL, state). The caller binds the state to the browser via a cookie."""
     cfg = get_config()
-    if not cfg.google_client_id or not cfg.google_client_secret:
-        raise OAuthError("oauth_not_configured", "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are not set", 503)
+    creds = app_config.google_creds()
+    if creds is None:
+        raise OAuthError("oauth_not_configured", "Google sign-in is not configured yet (open /setup)", 503)
     state, verifier, nonce = random_token(32), random_token(48), random_token(24)
     first_connect = not has_refresh_token()
     with write_session() as s:
@@ -73,7 +75,7 @@ def build_login_url() -> tuple[str, str]:
             )
         )
     params = {
-        "client_id": cfg.google_client_id,
+        "client_id": creds.client_id,
         "redirect_uri": cfg.redirect_uri,
         "response_type": "code",
         "scope": SCOPES,
@@ -116,11 +118,11 @@ def decode_id_token(id_token: str) -> dict:
 
 
 def validate_claims(claims: dict, nonce: str) -> None:
-    cfg = get_config()
     if claims.get("iss") not in VALID_ISSUERS:
         raise OAuthError("invalid_id_token", "bad issuer")
     aud = claims.get("aud")
-    if cfg.google_client_id not in (aud if isinstance(aud, list) else [aud]):
+    creds = app_config.google_creds()
+    if creds is None or creds.client_id not in (aud if isinstance(aud, list) else [aud]):
         raise OAuthError("invalid_id_token", "bad audience")
     try:
         if float(claims.get("exp", 0)) < datetime.now(UTC).timestamp():
@@ -137,12 +139,15 @@ def validate_claims(claims: dict, nonce: str) -> None:
 
 def exchange_code(code: str, verifier: str, http: httpx.Client | None = None) -> dict:
     cfg = get_config()
+    creds = app_config.google_creds()
+    if creds is None:
+        raise OAuthError("oauth_not_configured", "Google sign-in is not configured yet (open /setup)", 503)
     data = {
         "grant_type": "authorization_code",
         "code": code,
         "redirect_uri": cfg.redirect_uri,
-        "client_id": cfg.google_client_id,
-        "client_secret": cfg.google_client_secret,
+        "client_id": creds.client_id,
+        "client_secret": creds.client_secret,
         "code_verifier": verifier,
     }
     own = http is None
@@ -172,13 +177,12 @@ class LoginResult:
 
 
 def complete_login(code: str, state: str, ip: str | None = None, http: httpx.Client | None = None) -> LoginResult:
-    cfg = get_config()
     verifier, nonce = _consume_state(state)
     body = exchange_code(code, verifier, http)
     claims = decode_id_token(body["id_token"])
     validate_claims(claims, nonce)
     email = claims["email"].strip().lower()
-    if email not in cfg.allowed_emails:
+    if not app_config.is_allowed(email):
         with write_session() as s:
             audit(s, "login.denied", None, {"email": email}, ip)
         raise OAuthError("email_not_allowed", "this Google account is not allowed to use this instance", 403)
@@ -192,11 +196,11 @@ def complete_login(code: str, state: str, ip: str | None = None, http: httpx.Cli
         is_new = user is None
         if user is None:
             first = s.scalar(select(User.id).limit(1)) is None
-            admins = get_config().admin_emails
+            admins = app_config.admin_emails(s)
             user = User(google_sub=sub, email=email, is_admin=(email in admins) if admins else first)
             s.add(user)
-        elif get_config().admin_emails:
-            user.is_admin = email in get_config().admin_emails
+        elif app_config.admin_emails(s):
+            user.is_admin = email in app_config.admin_emails(s)
         user.email = email
         user.display_name = claims.get("name") or user.display_name
         user.picture_url = claims.get("picture") or user.picture_url

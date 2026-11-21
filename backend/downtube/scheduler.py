@@ -17,7 +17,7 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy import select
 
-from downtube import runtime_status
+from downtube import app_config, runtime_status
 from downtube.auth.sessions import cleanup_expired
 from downtube.config import get_config
 from downtube.db import read_session, write_session
@@ -37,7 +37,6 @@ _lock = threading.Lock()
 
 def active_user_ids() -> list[int]:
     """Users with a working Google connection who are still on the allowlist."""
-    cfg = get_config()
     with read_session() as s:
         rows = s.execute(
             select(GoogleAccount.user_id, User.email)
@@ -45,7 +44,8 @@ def active_user_ids() -> list[int]:
             .where(GoogleAccount.status == AccountStatus.active)
             .order_by(GoogleAccount.user_id)
         ).all()
-    return [uid for uid, email in rows if cfg.is_allowed(email)]
+    allowed = app_config.allowed_emails()
+    return [uid for uid, email in rows if email and email.lower() in allowed]
 
 
 def job_likes_poll() -> None:

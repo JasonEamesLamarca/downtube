@@ -245,9 +245,11 @@ def fake_yt(client):  # type: ignore[no-untyped-def]
 
 @pytest.fixture(autouse=True)
 def _reset_in_memory_state():  # type: ignore[no-untyped-def]
+    from downtube.api.setup import setup_limiter
     from downtube.auth.ratelimit import auth_limiter
     from downtube.sync import runner
 
     auth_limiter.reset()
+    setup_limiter.reset()
     runner.reset_guard()
     yield

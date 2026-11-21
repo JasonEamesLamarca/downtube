@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 from functools import lru_cache
 from pathlib import Path
 
@@ -27,6 +28,8 @@ class Config(BaseSettings):
     host_archive_path: str | None = Field(default=None, alias="DOWNTUBE_HOST_ARCHIVE_PATH")
 
     cookie_secure: bool | None = Field(default=None, alias="DOWNTUBE_COOKIE_SECURE")
+    # Reverse proxies (CIDRs) whose X-Real-IP / X-Forwarded-For / X-Forwarded-Proto are trusted.
+    trusted_proxies_raw: str = Field(default="127.0.0.1/32", alias="DOWNTUBE_TRUSTED_PROXIES")
     log_level: str = Field(default="INFO", alias="DOWNTUBE_LOG_LEVEL")
     ytdlp_bin: str = Field(default="yt-dlp", alias="DOWNTUBE_YTDLP_BIN")
     ffprobe_bin: str = Field(default="ffprobe", alias="DOWNTUBE_FFPROBE_BIN")
@@ -61,6 +64,14 @@ class Config(BaseSettings):
         return [Path(p.strip()) for p in self.storage_mounts_raw.split(",") if p.strip()]
 
     @property
+    def trusted_proxies(self) -> list[ipaddress.IPv4Network | ipaddress.IPv6Network]:
+        nets = []
+        for part in self.trusted_proxies_raw.split(","):
+            if part.strip():
+                nets.append(ipaddress.ip_network(part.strip(), strict=False))
+        return nets
+
+    @property
     def redirect_uri(self) -> str:
         return f"{self.base_url}/api/auth/callback"
 
@@ -77,10 +88,6 @@ class Config(BaseSettings):
         problems = []
         if len(self.secret_key) < 32:
             problems.append("DOWNTUBE_SECRET_KEY must be set and at least 32 characters")
-        if not self.google_client_id or not self.google_client_secret:
-            problems.append("GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are not set (login disabled)")
-        if not self.allowed_emails:
-            problems.append("DOWNTUBE_ALLOWED_EMAILS is empty (no one can log in)")
         return problems
 
 
