@@ -79,6 +79,21 @@ sudo chmod 600 /volume1/docker/downtube/config/.env
 `DOWNTUBE_BASE_URL` must match the redirect URI registered in Google. For SSH-tunnel access
 keep `http://localhost:8092`. For a reverse proxy, use your HTTPS URL.
 
+### Shared-folder ACLs
+
+DSM shared folders such as `video` grant access through ACLs, often via group membership
+(for example `administrators`, gid 101). Inside the container the process only has the groups you
+give it. If the health check reports `archive_writable: false` although the user can write the
+folder on the host, either grant that user explicit Read/Write on the folder in DSM, or add the
+relevant group to the service:
+
+```yaml
+    group_add:
+      - "101"
+```
+
+Also note that DSM kernels refuse CPU quotas (`cpus:`); DownTube only sets a memory limit.
+
 ## 4. Create the project in Container Manager
 
 1. Open **Container Manager > Project > Create** (menu names vary by DSM version).

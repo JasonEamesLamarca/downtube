@@ -39,12 +39,11 @@ services:
     # Limits are set twice on purpose: deploy.resources for modern Compose, and the
     # legacy top-level keys that Compose 2.20 (older Synology DSM packages) understands.
     # Keep the values identical, or Compose rejects the file.
-    cpus: 2.0
+    # CPU quotas (cpus:) are not used: Synology DSM kernels lack CFS bandwidth control and refuse them.
     mem_limit: 2g
     deploy:
       resources:
         limits:
-          cpus: "2.0"
           memory: 2g
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8092/api/health', timeout=4).status == 200 else 1)"]
