@@ -30,5 +30,9 @@ export const endpoints = {
   storage: () => api<T.StorageInfo>('/storage'),
   browse: (path?: string) => api<T.BrowseResult>('/storage/browse', { query: { path } }),
   setRoot: (b: T.SetRootRequest) => api<T.StorageInfo>('/storage/root', { method: 'POST', body: b }),
+  setupStatus: () => api<T.SetupStatus>('/setup/status'),
+  submitSetup: (b: T.SetupRequest) => api<T.SetupStatus>('/setup', { method: 'POST', body: b, noAuthRedirect: true }),
+  getGoogleSettings: () => api<T.GoogleSettingsOut>('/admin/google'),
+  updateGoogleSettings: (b: T.GoogleSettingsUpdate) => api<T.GoogleSettingsOut>('/admin/google', { method: 'PUT', body: b }),
   logs: (lines = 200) => api<T.LogLines>('/logs', { query: { lines } }),
 };

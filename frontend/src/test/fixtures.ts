@@ -1,4 +1,4 @@
-import type { JobOut, SettingsOut, SubscriptionOut } from '../api/types';
+import type { JobOut, SettingsOut, SetupStatus, SubscriptionOut } from '../api/types';
 
 export const sub = (over: Partial<SubscriptionOut> = {}): SubscriptionOut => ({
   channel_id: 'UC1', title: 'Channel One', description: 'About one', thumbnail_url: null,
@@ -22,3 +22,8 @@ export const settings: SettingsOut = {
   min_free_gb: 20, large_channel_threshold: 200, write_thumbnails: true, write_nfo: false, keep_superseded_copies: true,
   quota_daily_budget: 8000, timezone: 'UTC',
 };
+
+export const setupStatus = (over: Partial<SetupStatus> = {}): SetupStatus => ({
+  needs_setup: true, google_configured: false, emails_configured: false, google_env_managed: false,
+  emails_env_managed: false, redirect_uri: 'http://dt.local/api/auth/callback', base_url: 'http://dt.local', ...over,
+});

@@ -1,11 +1,12 @@
 import { useId, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ApiError } from '../api/client';
 import { endpoints } from '../api/endpoints';
 import type { SettingsOut, SettingsUpdate } from '../api/types';
 import { useMe, ME_KEY } from '../auth';
 import { ErrorNote, Modal, PageHeader, ProgressBar, ResolutionNote, ResolutionSelect, Spinner } from '../components/ui';
 import { formatBytes } from '../lib/format';
+import { fieldErrors } from '../lib/errors';
+import { GoogleSection } from '../components/GoogleSettings';
 
 export function diffSettings(orig: SettingsOut, cur: SettingsOut): SettingsUpdate {
   const out: Record<string, unknown> = {};
@@ -17,22 +18,6 @@ export function diffSettings(orig: SettingsOut, cur: SettingsOut): SettingsUpdat
   if ('bandwidth_limit_kbps' in out && out.bandwidth_limit_kbps === null) out.bandwidth_limit_kbps = 0;
   if ('download_window' in out && !out.download_window) out.download_window = '';
   return out as SettingsUpdate;
-}
-
-export function fieldErrors(e: unknown): Record<string, string> {
-  const res: Record<string, string> = {};
-  if (!(e instanceof ApiError) || e.status !== 422) return res;
-  const d = e.details as unknown;
-  if (Array.isArray(d)) {
-    for (const it of d) {
-      const loc = (it as { loc?: unknown[] }).loc;
-      const field = Array.isArray(loc) ? String(loc[loc.length - 1]) : '';
-      if (field) res[field] = String((it as { msg?: string }).msg ?? 'Invalid value');
-    }
-  } else if (d && typeof d === 'object') {
-    for (const [k, v] of Object.entries(d as Record<string, unknown>)) res[k] = Array.isArray(v) ? v.join(', ') : String(v);
-  }
-  return res;
 }
 
 const WINDOW_RE = /^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$/;
@@ -273,6 +258,8 @@ export default function SettingsPage() {
         <Section title="API quota">
           {num('quota_daily_budget', 'Daily YouTube API quota budget (units)', { min: 100, max: 1000000, hint: 'Google gives 10,000 units per day by default.' })}
         </Section>
+
+        {me.is_admin && <GoogleSection />}
 
         {me.is_admin && <LogsViewer />}
       </div>
