@@ -50,7 +50,7 @@ jobs:
       - name: Ruff format check
         run: ruff format --check .
 
-      - name: Mypy (advisory until the codebase is typed clean)
+      - name: Mypy
         run: mypy downtube
 
       - name: Pytest with coverage
