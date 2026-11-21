@@ -61,6 +61,13 @@ they control. The main controls are:
   authenticated HTTPS reverse proxy.
 - Revoke DownTube's access in your Google account if you stop using it (see [PRIVACY.md](PRIVACY.md)).
 
+## Known limitations
+
+- Multiple users who want the same video share one download job; any of them can pause or cancel it.
+- The OpenAPI documentation (`/api/docs`) is reachable without signing in (it contains no data).
+- Serve DownTube over HTTPS (reverse proxy) for anything beyond a trusted LAN/Tailscale network;
+  session cookies are only marked `Secure` when `DOWNTUBE_BASE_URL` starts with `https://`.
+
 ## Out of scope
 
 - Vulnerabilities in YouTube, Google services, yt-dlp or ffmpeg. Report those to their maintainers.

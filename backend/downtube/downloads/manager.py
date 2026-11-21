@@ -527,6 +527,12 @@ class DownloadManager:
             assert job is not None
             available = (job.selection or {}).get("available_formats")
 
+        if old_path is not None:
+            try:  # DB-recorded paths are re-validated before any rename/delete
+                old_path = paths.resolve_within_mounts(old_path)
+            except paths.StorageError:
+                log.warning("job %s: previous archive path is outside the storage mounts; leaving it untouched", job_id)
+                old_path = None
         (root / folder).mkdir(parents=True, exist_ok=True)
         dest = paths.safe_join(root, folder, filename)
         superseded_action: str | None = None

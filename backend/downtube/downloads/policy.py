@@ -12,6 +12,7 @@ Absolute rules (see docs/architecture/CONTRACTS.md §5):
 
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
@@ -20,6 +21,7 @@ MAX_SHORT_SIDE = 2160
 MP4_VIDEO = ("avc1", "avc3", "h264", "hev1", "hvc1", "hevc", "h265", "vp09", "vp9", "av01", "av1")
 MP4_AUDIO = ("mp4a", "aac", "opus", "ac-3", "ac3", "ec-3", "eac3", "flac", "mp3")
 NOT_A_STREAM_EXT = ("mhtml",)
+_FORMAT_ID_RE = re.compile(r"[A-Za-z0-9_.-]{1,64}")
 
 
 @dataclass(frozen=True)
@@ -175,8 +177,8 @@ def parse_formats(info: dict[str, Any]) -> list[Fmt]:
     out: list[Fmt] = []
     for raw in info.get("formats") or []:
         fid = raw.get("format_id")
-        if not fid:
-            continue
+        if not fid or not _FORMAT_ID_RE.fullmatch(str(fid)):
+            continue  # unexpected ids are never passed into yt-dlp's -f expression
         fs = raw.get("filesize") or raw.get("filesize_approx")
         out.append(
             Fmt(

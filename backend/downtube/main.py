@@ -109,6 +109,8 @@ def create_app(config: Config | None = None, *, start_background: bool | None = 
         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
         resp.headers.setdefault("X-Frame-Options", "DENY")
         resp.headers.setdefault("Referrer-Policy", "same-origin")
+        if request.url.path.startswith("/api/") and not request.url.path.startswith("/api/library/"):
+            resp.headers.setdefault("Cache-Control", "no-store")
         resp.headers.setdefault(
             "Content-Security-Policy",
             "default-src 'self'; img-src 'self' https://i.ytimg.com https://yt3.ggpht.com "
@@ -135,7 +137,10 @@ def _mount_spa(app: FastAPI, static_dir: Path | None) -> None:
     async def spa(full_path: str) -> FileResponse:
         if full_path.startswith("api/"):
             raise HTTPException(404, "not found")
-        candidate = (root / full_path).resolve()
-        if full_path and candidate.is_file() and candidate.is_relative_to(root):
-            return FileResponse(candidate)
+        try:
+            candidate = (root / full_path).resolve()
+            if full_path and candidate.is_file() and candidate.is_relative_to(root):
+                return FileResponse(candidate)
+        except (ValueError, OSError):
+            pass
         return FileResponse(index)

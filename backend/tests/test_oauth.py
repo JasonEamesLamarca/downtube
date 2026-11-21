@@ -241,3 +241,60 @@ def test_refresh_when_expiring_and_invalid_grant(client):
         get_access_token(h.account_id)
     me = client.get("/api/auth/me", headers=h).json()
     assert me["account_status"] == "reauth_required"
+
+
+# --------------------------------------------------------------------------- hardening (security review)
+
+
+def test_callback_requires_state_cookie_from_same_browser(client, google):
+    _, q = start_login(client)
+    google.post(TOKEN_URL).mock(return_value=token_response(q["nonce"]))
+    client.cookies.delete("dt_oauth", path="/api/auth")
+    client.cookies.clear()
+    r = client.get("/api/auth/callback", params={"code": "c", "state": q["state"]}, follow_redirects=False)
+    assert r.headers["location"] == "/login?error=invalid_state"
+
+
+def test_removed_from_allowlist_revokes_session(client, monkeypatch):
+    from downtube.config import get_config
+
+    h = login(client, "second@example.com")
+    assert client.get("/api/auth/me", headers=h).status_code == 200
+    monkeypatch.setenv("DOWNTUBE_ALLOWED_EMAILS", "owner@example.com")
+    get_config.cache_clear()
+    assert client.get("/api/auth/me", headers=h).status_code == 401
+    with read_session() as s:
+        assert s.scalar(select(WebSession).where(WebSession.user_id == h.user_id)) is None
+
+
+def test_admin_emails_designate_admin(client, google, monkeypatch):
+    from downtube.config import get_config
+
+    monkeypatch.setenv("DOWNTUBE_ADMIN_EMAILS", "second@example.com")
+    get_config.cache_clear()
+    _, q = start_login(client)
+    google.post(TOKEN_URL).mock(return_value=token_response(q["nonce"], email="owner@example.com"))
+    client.get("/api/auth/callback", params={"code": "c", "state": q["state"]}, follow_redirects=False)
+    with read_session() as s:
+        assert s.scalar(select(User).where(User.email == "owner@example.com")).is_admin is False
+
+
+def test_pending_oauth_states_are_bounded(client):
+    for _ in range(205):
+        from downtube.auth import oauth
+
+        oauth.build_login_url()
+    with read_session() as s:
+        assert len(s.scalars(select(OAuthState)).all()) <= 200
+
+
+def test_api_no_store_and_spa_nul_byte(client):
+    r = client.get("/api/health")
+    assert r.headers["Cache-Control"] == "no-store"
+
+
+def test_format_ids_are_validated():
+    from downtube.downloads.policy import parse_formats
+
+    fmts = parse_formats({"formats": [{"format_id": "137"}, {"format_id": "1+2/best"}, {"format_id": "a b"}]})
+    assert [f.format_id for f in fmts] == ["137"]

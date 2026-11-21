@@ -21,7 +21,7 @@ from downtube import runtime_status
 from downtube.auth.sessions import cleanup_expired
 from downtube.config import get_config
 from downtube.db import read_session, write_session
-from downtube.models import AccountStatus, ArchiveMode, ChannelRule, GoogleAccount, SyncRun, SyncStatus
+from downtube.models import AccountStatus, ArchiveMode, ChannelRule, GoogleAccount, SyncRun, SyncStatus, User
 from downtube.settings_service import get_settings
 from downtube.sync import common, runner
 
@@ -36,14 +36,16 @@ _lock = threading.Lock()
 
 
 def active_user_ids() -> list[int]:
+    """Users with a working Google connection who are still on the allowlist."""
+    cfg = get_config()
     with read_session() as s:
-        return list(
-            s.scalars(
-                select(GoogleAccount.user_id)
-                .where(GoogleAccount.status == AccountStatus.active)
-                .order_by(GoogleAccount.user_id)
-            )
-        )
+        rows = s.execute(
+            select(GoogleAccount.user_id, User.email)
+            .join(User, User.id == GoogleAccount.user_id)
+            .where(GoogleAccount.status == AccountStatus.active)
+            .order_by(GoogleAccount.user_id)
+        ).all()
+    return [uid for uid, email in rows if cfg.is_allowed(email)]
 
 
 def job_likes_poll() -> None:

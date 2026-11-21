@@ -99,7 +99,9 @@ Create a `.env` file next to `docker-compose.yml`. Never commit this file.
 | `GOOGLE_CLIENT_ID` | Yes | none | OAuth client ID from step 4. |
 | `GOOGLE_CLIENT_SECRET` | Yes | none | OAuth client secret from step 4. |
 | `DOWNTUBE_BASE_URL` | Yes | `http://localhost:8092` | Public origin of the app. Must match the redirect URI origin exactly. |
-| `DOWNTUBE_ALLOWED_EMAILS` | Yes | none | Comma-separated Google accounts allowed to sign in. The first one to sign in becomes admin. |
+| `DOWNTUBE_ALLOWED_EMAILS` | Yes | none | Comma-separated Google accounts allowed to sign in. Removing an address revokes that user's sessions and stops their background syncs. |
+| `DOWNTUBE_ADMIN_EMAILS` | No | none | Comma-separated administrators. If unset, the first account to sign in becomes admin. Admins change settings and the storage root. |
+| `FORWARDED_ALLOW_IPS` | No | `127.0.0.1` | Reverse-proxy address(es) whose `X-Forwarded-For` header is trusted (client IPs for rate limiting and audit logs). |
 | `DOWNTUBE_DATA_DIR` | No | `/data` | Database location in the container. |
 | `DOWNTUBE_TEMP_DIR` | No | `/temp` | Partial downloads. |
 | `DOWNTUBE_LOG_DIR` | No | `/logs` | Log files. |

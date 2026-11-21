@@ -15,7 +15,7 @@ from datetime import UTC, datetime, timedelta
 from urllib.parse import urlencode
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from downtube.auth.audit import audit
 from downtube.config import get_config
@@ -51,13 +51,19 @@ def has_refresh_token() -> bool:
         )
 
 
-def build_login_url() -> str:
+def build_login_url() -> tuple[str, str]:
+    """Return (authorization URL, state). The caller binds the state to the browser via a cookie."""
     cfg = get_config()
     if not cfg.google_client_id or not cfg.google_client_secret:
         raise OAuthError("oauth_not_configured", "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are not set", 503)
     state, verifier, nonce = random_token(32), random_token(48), random_token(24)
     first_connect = not has_refresh_token()
     with write_session() as s:
+        # Bound pending login attempts (abuse protection): drop expired, keep at most 200.
+        s.execute(delete(OAuthState).where(OAuthState.expires_at < datetime.now(UTC)))
+        stale = s.scalars(select(OAuthState.state_hash).order_by(OAuthState.created_at.desc()).offset(199)).all()
+        if stale:
+            s.execute(delete(OAuthState).where(OAuthState.state_hash.in_(stale)))
         s.add(
             OAuthState(
                 state_hash=sha256_hex(state),
@@ -80,7 +86,7 @@ def build_login_url() -> str:
     }
     if first_connect:
         params["prompt"] = "consent"  # guarantees a refresh token the first time
-    return f"{cfg.google_auth_url}?{urlencode(params)}"
+    return f"{cfg.google_auth_url}?{urlencode(params)}", state
 
 
 def _consume_state(state: str) -> tuple[str, str]:
@@ -186,8 +192,11 @@ def complete_login(code: str, state: str, ip: str | None = None, http: httpx.Cli
         is_new = user is None
         if user is None:
             first = s.scalar(select(User.id).limit(1)) is None
-            user = User(google_sub=sub, email=email, is_admin=first)
+            admins = get_config().admin_emails
+            user = User(google_sub=sub, email=email, is_admin=(email in admins) if admins else first)
             s.add(user)
+        elif get_config().admin_emails:
+            user.is_admin = email in get_config().admin_emails
         user.email = email
         user.display_name = claims.get("name") or user.display_name
         user.picture_url = claims.get("picture") or user.picture_url

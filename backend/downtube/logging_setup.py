@@ -62,6 +62,8 @@ def setup_logging(cfg: Config) -> None:
         h.addFilter(RedactingFilter())
         root.addHandler(h)
     root.setLevel(cfg.log_level.upper())
+    for name in ("uvicorn.access", "uvicorn.error", "uvicorn"):
+        logging.getLogger(name).addFilter(RedactingFilter())
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("apscheduler").setLevel(logging.WARNING)
     root._downtube_configured = True  # type: ignore[attr-defined]

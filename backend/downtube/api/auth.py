@@ -15,12 +15,15 @@ from downtube.auth import accounts, oauth, sessions
 from downtube.auth.audit import audit
 from downtube.auth.deps import AuthContext, auth_context, request_db
 from downtube.auth.ratelimit import client_ip, rate_limit_auth
+from downtube.config import get_config
 from downtube.db import write_session
 from downtube.main import ApiError
 from downtube.models import GoogleAccount, User, WebSession
 from downtube.schemas import DisconnectRequest, Me
+from downtube.security.crypto import constant_time_equals, sha256_hex
 
 log = logging.getLogger("downtube.auth")
+STATE_COOKIE = "dt_oauth"
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -31,7 +34,19 @@ def _login_error(code: str) -> RedirectResponse:
 @router.get("/login", dependencies=[Depends(rate_limit_auth)], include_in_schema=True)
 def login() -> RedirectResponse:
     try:
-        return RedirectResponse(oauth.build_login_url(), status_code=302)
+        url, state = oauth.build_login_url()
+        resp = RedirectResponse(url, status_code=302)
+        # Bind the login attempt to this browser (login-CSRF protection).
+        resp.set_cookie(
+            STATE_COOKIE,
+            sha256_hex(state),
+            max_age=600,
+            path="/api/auth",
+            httponly=True,
+            samesite="lax",
+            secure=get_config().secure_cookies,
+        )
+        return resp
     except oauth.OAuthError as e:
         raise ApiError(e.status, e.code, str(e)) from e
 
@@ -47,6 +62,9 @@ def callback(
         return _login_error("access_denied" if error == "access_denied" else "oauth_error")
     if not code or not state:
         return _login_error("invalid_request")
+    bound = request.cookies.get(STATE_COOKIE, "")
+    if not bound or not constant_time_equals(bound, sha256_hex(state)):
+        return _login_error("invalid_state")
     ip = client_ip(request)
     try:
         result = oauth.complete_login(code, state, ip)
@@ -57,6 +75,7 @@ def callback(
         raw = sessions.create_session(s, result.user_id, request.headers.get("user-agent"))
     resp = RedirectResponse("/", status_code=302)
     sessions.set_cookie(resp, raw)
+    resp.delete_cookie(STATE_COOKIE, path="/api/auth")
     return resp
 
 

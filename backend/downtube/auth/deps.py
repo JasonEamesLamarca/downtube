@@ -7,9 +7,11 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from fastapi import Depends, Request
+from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from downtube.auth.sessions import COOKIE_NAME
+from downtube.config import get_config
 from downtube.db import read_session, write_session
 from downtube.main import ApiError
 from downtube.models import User, WebSession
@@ -46,6 +48,10 @@ def auth_context(request: Request, db: Session = Depends(request_db)) -> AuthCon
     user = db.get(User, sess.user_id)
     if user is None:
         raise ApiError(401, "unauthenticated", "session missing or expired")
+    if not get_config().is_allowed(user.email):  # removed from DOWNTUBE_ALLOWED_EMAILS: revoke immediately
+        with write_session() as w:
+            w.execute(delete(WebSession).where(WebSession.user_id == user.id))
+        raise ApiError(401, "unauthenticated", "account is no longer allowed")
     if request.method in MUTATING:
         sent = request.headers.get("x-csrf-token", "")
         if not sent or not constant_time_equals(sent, sess.csrf_token):

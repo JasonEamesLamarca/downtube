@@ -83,7 +83,7 @@ def storage(user: User = Depends(current_user), db: Session = Depends(request_db
 
 
 @router.get("/storage/browse", response_model=BrowseResult)
-def browse(path: str | None = None, user: User = Depends(current_user)) -> BrowseResult:
+def browse(path: str | None = None, user: User = Depends(require_admin)) -> BrowseResult:
     try:
         return paths.browse(path)
     except paths.StorageError as e:

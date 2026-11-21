@@ -17,6 +17,7 @@ class Config(BaseSettings):
     google_client_secret: str = Field(default="", alias="GOOGLE_CLIENT_SECRET")
     base_url: str = Field(default="http://localhost:8092", alias="DOWNTUBE_BASE_URL")
     allowed_emails_raw: str = Field(default="", alias="DOWNTUBE_ALLOWED_EMAILS")
+    admin_emails_raw: str = Field(default="", alias="DOWNTUBE_ADMIN_EMAILS")
 
     data_dir: Path = Field(default=Path("/data"), alias="DOWNTUBE_DATA_DIR")
     temp_dir: Path = Field(default=Path("/temp"), alias="DOWNTUBE_TEMP_DIR")
@@ -47,6 +48,13 @@ class Config(BaseSettings):
     @property
     def allowed_emails(self) -> set[str]:
         return {e.strip().lower() for e in self.allowed_emails_raw.split(",") if e.strip()}
+
+    @property
+    def admin_emails(self) -> set[str]:
+        return {e.strip().lower() for e in self.admin_emails_raw.split(",") if e.strip()}
+
+    def is_allowed(self, email: str | None) -> bool:
+        return bool(email) and email.strip().lower() in self.allowed_emails  # type: ignore[union-attr]
 
     @property
     def storage_mounts(self) -> list[Path]:
