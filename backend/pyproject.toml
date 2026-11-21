@@ -5,7 +5,7 @@ description = "Self-hosted YouTube archiving platform (likes + subscriptions, or
 license = { text = "MIT" }
 requires-python = ">=3.12"
 dependencies = [
-  "fastapi>=0.115",
+  "fastapi>=0.163.2",
   "uvicorn[standard]>=0.32",
   "sqlalchemy>=2.0.36",
   "alembic>=1.14",
