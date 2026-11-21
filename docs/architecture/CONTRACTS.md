@@ -238,6 +238,10 @@ Finalization: copy/move from temp to `<final>.downtube-partial` in the target di
 | GET `/sync/runs?kind=&page=` | → `Page[SyncRunOut]` |
 | GET `/quota` | → `QuotaInfo` |
 | GET `/logs?lines=200` (admin) | → `LogLines` (secrets redacted) |
+| GET `/setup/status` (no auth) | → `SetupStatus` |
+| POST `/setup` (no auth, one-time code from the container log; 403 `invalid_setup_code`, 409 `already_configured`, 429 `rate_limited`) | `SetupRequest` → `SetupStatus` |
+| GET `/admin/google` (admin) | → `GoogleSettingsOut` |
+| PUT `/admin/google` (admin) | `GoogleSettingsUpdate` → `GoogleSettingsOut` (409 `cannot_remove_self`) |
 
 Errors: `{"error": {"code", "message"}}`; 401 unauthenticated, 403 forbidden/CSRF, 404, 409
 conflict/confirmation, 422 validation, 429 rate limit, 503 quota/unavailable.
@@ -264,6 +268,15 @@ visible to a user only if that user has a VideoSource for the video).
 | `DOWNTUBE_LOG_LEVEL` | `INFO` | |
 | `DOWNTUBE_YTDLP_BIN` / `DOWNTUBE_FFPROBE_BIN` | `yt-dlp` / `ffprobe` | |
 | `TZ`, `PUID`/`PGID` | `UTC`, 1000/1000 | |
+
+## 9a. Runtime configuration stored in the app (v0.2)
+
+Google OAuth client ID/secret, allowed emails and admin emails may come from the environment
+(env wins, shown read-only) or from the first-run setup page / Settings (stored in `settings`,
+secret Fernet-encrypted). While Google sign-in or the allowlist is not configured, the app is in
+*setup mode*: a fresh one-time setup code is logged at every start (`DownTube setup code: …`).
+`DOWNTUBE_TRUSTED_PROXIES` (CIDRs, default `127.0.0.1/32`) lists reverse proxies whose
+`X-Real-IP` / `X-Forwarded-For` / `X-Forwarded-Proto` headers are honoured.
 
 ## 10. OAuth
 

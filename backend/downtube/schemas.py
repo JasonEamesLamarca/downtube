@@ -377,3 +377,51 @@ class Health(ApiModel):
     worker: bool
     scheduler: bool
     archive_writable: bool
+
+
+# ----------------------------------------------------------------- first-run setup / Google sign-in config (v0.2)
+
+
+class SetupStatus(ApiModel):
+    """Public (no auth). ``needs_setup`` → the SPA shows /setup instead of /login."""
+
+    needs_setup: bool
+    google_configured: bool
+    emails_configured: bool
+    google_env_managed: bool  # GOOGLE_CLIENT_ID/SECRET come from the environment (read-only in the UI)
+    emails_env_managed: bool  # DOWNTUBE_ALLOWED_EMAILS comes from the environment
+    redirect_uri: str  # register exactly this in Google Cloud Console
+    base_url: str
+
+
+class SetupRequest(ApiModel):
+    """POST /api/setup (no auth). ``setup_code`` is printed in the container log on startup."""
+
+    setup_code: str = Field(min_length=6, max_length=64)
+    google_client_id: str | None = Field(default=None, max_length=255)
+    google_client_secret: str | None = Field(default=None, max_length=255)
+    allowed_emails: list[str] = Field(default_factory=list, max_length=50)
+    admin_emails: list[str] = Field(default_factory=list, max_length=50)
+
+
+class GoogleSettingsOut(ApiModel):
+    """GET /api/admin/google (admin). The secret itself is never returned."""
+
+    google_client_id: str | None
+    google_client_secret_set: bool
+    allowed_emails: list[str]
+    admin_emails: list[str]
+    google_env_managed: bool
+    emails_env_managed: bool
+    redirect_uri: str
+
+
+class GoogleSettingsUpdate(ApiModel):
+    """PUT /api/admin/google (admin). Omitted/None fields are unchanged. You cannot remove your own email."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    google_client_id: str | None = Field(default=None, max_length=255)
+    google_client_secret: str | None = Field(default=None, max_length=255)
+    allowed_emails: list[str] | None = Field(default=None, max_length=50)
+    admin_emails: list[str] | None = Field(default=None, max_length=50)
