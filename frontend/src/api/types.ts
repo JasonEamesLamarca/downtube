@@ -247,3 +247,35 @@ export interface Health {
   scheduler: boolean;
   archive_writable: boolean;
 }
+
+export interface SetupStatus {
+  needs_setup: boolean;
+  google_configured: boolean;
+  emails_configured: boolean;
+  google_env_managed: boolean;
+  emails_env_managed: boolean;
+  redirect_uri: string;
+  base_url: string;
+}
+export interface SetupRequest {
+  setup_code: string;
+  google_client_id?: string | null;
+  google_client_secret?: string | null;
+  allowed_emails: string[];
+  admin_emails: string[];
+}
+export interface GoogleSettingsOut {
+  google_client_id: string | null;
+  google_client_secret_set: boolean;
+  allowed_emails: string[];
+  admin_emails: string[];
+  google_env_managed: boolean;
+  emails_env_managed: boolean;
+  redirect_uri: string;
+}
+export interface GoogleSettingsUpdate {
+  google_client_id?: string | null;
+  google_client_secret?: string | null;
+  allowed_emails?: string[] | null;
+  admin_emails?: string[] | null;
+}
