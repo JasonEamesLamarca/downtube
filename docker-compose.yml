@@ -1,0 +1,65 @@
+# DownTube - generic single-host deployment.
+# Copy .env.example to .env and fill it in. Nothing private (IPs, hostnames, secrets) belongs in this file.
+name: downtube
+
+services:
+  downtube:
+    # Prebuilt image published by .github/workflows/release.yml.
+    image: ghcr.io/jasoneameslamarca/downtube:latest
+    # To build from source instead, uncomment the line below (then: docker compose build).
+    # build: .
+    container_name: downtube
+    restart: unless-stopped
+    ports:
+      # Host port is configurable; the container always listens on 8092.
+      - "${DOWNTUBE_PORT:-8092}:8092"
+    env_file:
+      - .env
+    # Run as a fixed non-root uid/gid. Host folders below must be owned by PUID:PGID.
+    user: "${PUID:-1000}:${PGID:-1000}"
+    volumes:
+      - ./data:/data        # SQLite database and app state
+      - ./logs:/logs        # rotating application logs
+      - ./temp:/temp        # partial downloads (kept separate from the archive)
+      # Final archive. Point DOWNTUBE_ARCHIVE_HOST_PATH at your media share, e.g. a NAS folder.
+      - ${DOWNTUBE_ARCHIVE_HOST_PATH:-./archive}:/archive
+    # Immutable root filesystem: only the volumes above and the tmpfs below are writable.
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    # Hardening: no privilege escalation, no Linux capabilities (port 8092 is unprivileged).
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    privileged: false
+    # Isolated bridge network: no host networking, no docker socket mount.
+    networks:
+      - downtube_net
+    # Limits are set twice on purpose: deploy.resources for modern Compose, and the
+    # legacy top-level keys that Compose 2.20 (older Synology DSM packages) understands.
+    # Keep the values identical, or Compose rejects the file.
+    cpus: 2.0
+    mem_limit: 2g
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2g
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8092/api/health', timeout=4).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    # Bounded logs so a long-running archiver cannot fill the disk.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  downtube_net:
+    name: downtube_net
+    driver: bridge

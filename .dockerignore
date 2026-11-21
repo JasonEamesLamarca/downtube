@@ -1,0 +1,33 @@
+# Keep the build context small and free of local state and secrets.
+# Root-anchored patterns (leading /) so same-named folders inside source trees survive.
+.git
+**/node_modules
+**/.venv
+**/venv
+**/__pycache__
+**/*.py[cod]
+**/*.egg-info
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.coverage
+**/htmlcov
+**/dist
+/data
+/logs
+/temp
+/archive
+/config
+**/*.db
+**/*.db-*
+**/*.sqlite*
+.env
+.env.*
+!.env.example
+docs/private
+**/*.docx
+.github
+.claude
+.idea
+.vscode
+.DS_Store

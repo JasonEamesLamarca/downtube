@@ -1,0 +1,183 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GITLEAKS_VERSION: "8.30.1"
+
+jobs:
+  backend:
+    name: Backend (lint, types, tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      - name: Install ffmpeg (media tests need ffprobe)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Install backend with dev extras
+        working-directory: .
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e 'backend[dev]'
+
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: Mypy (advisory until the codebase is typed clean)
+        continue-on-error: true
+        run: mypy downtube
+
+      - name: Pytest with coverage
+        run: pytest -m "not integration" --cov=downtube --cov-report=term-missing --cov-report=xml
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage.xml
+          if-no-files-found: ignore
+
+  frontend:
+    name: Frontend (lint, typecheck, test, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  security:
+    name: Security (dependency audit, secret scan)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # gitleaks scans the full history
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: pip-audit on backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e 'backend[dev]'
+          pip-audit --progress-spinner off
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: npm audit (production deps, high and above)
+        working-directory: frontend
+        run: |
+          npm ci --ignore-scripts
+          npm audit --audit-level=high --omit=dev
+
+      - name: gitleaks (CLI, checksum-verified; no license needed)
+        env:
+          BASE_URL: https://github.com/gitleaks/gitleaks/releases/download/v${{ env.GITLEAKS_VERSION }}
+          ARCHIVE: gitleaks_${{ env.GITLEAKS_VERSION }}_linux_x64.tar.gz
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/gitleaks"
+          mkdir -p "$work"
+          curl -sSfL -o "$work/$ARCHIVE" "$BASE_URL/$ARCHIVE"
+          curl -sSfL -o "$work/checksums.txt" "$BASE_URL/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          (cd "$work" && grep " $ARCHIVE\$" checksums.txt | sha256sum -c -)
+          tar -xzf "$work/$ARCHIVE" -C "$work" gitleaks
+          "$work/gitleaks" detect --source . --redact --verbose --exit-code 1
+
+  docker:
+    name: Docker (build, boot, health check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build image (linux/amd64, not pushed)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: downtube:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Boot container and wait for /api/health
+        env:
+          # Dummy values: the app must start without Google credentials.
+          DOWNTUBE_SECRET_KEY: ci-dummy-secret-key-not-for-production-use-0123456789
+          DOWNTUBE_ALLOWED_EMAILS: ci@example.invalid
+        run: |
+          set -euo pipefail
+          docker run -d --name downtube-ci \
+            --read-only --tmpfs /tmp \
+            --cap-drop ALL --security-opt no-new-privileges:true \
+            -e DOWNTUBE_SECRET_KEY -e DOWNTUBE_ALLOWED_EMAILS \
+            -v dt-data:/data -v dt-temp:/temp -v dt-logs:/logs -v dt-archive:/archive \
+            -p 127.0.0.1:8092:8092 \
+            downtube:ci
+
+          for _ in $(seq 1 45); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8092/api/health || true)
+            if [ "$code" = "200" ]; then
+              echo "Health check passed"
+              docker rm -f downtube-ci >/dev/null
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Health check did not return 200 (last code: ${code:-none})"
+          docker logs downtube-ci || true
+          docker rm -f downtube-ci >/dev/null || true
+          exit 1
