@@ -35,9 +35,28 @@ class RedactingFilter(logging.Filter):
             msg = record.getMessage()
         except Exception:  # noqa: BLE001 - never break logging
             return True
-        red = redact(msg)
-        if red != msg:
-            record.msg, record.args = red, None
+        if redact(msg) == msg:
+            return True
+        # Redact argument-wise so formatters that rely on the args shape (uvicorn's access
+        # formatter unpacks a 5-tuple) keep working.
+        args = record.args
+        if isinstance(args, tuple) and args:
+            record.args = tuple(redact(a) if isinstance(a, str) else a for a in args)
+            if isinstance(record.msg, str):
+                record.msg = redact(record.msg)
+            try:
+                formatted = record.getMessage()
+            except Exception:  # noqa: BLE001 - fall through to the collapse below
+                formatted = None
+            if formatted is not None and redact(formatted) == formatted:
+                return True
+        elif isinstance(args, dict) and args:
+            record.args = {k: redact(v) if isinstance(v, str) else v for k, v in args.items()}
+            if isinstance(record.msg, str):
+                record.msg = redact(record.msg)
+            return True
+        # Fallback: secret spans msg and args — collapse to the redacted, pre-formatted text.
+        record.msg, record.args = redact(msg), None
         return True
 
 
