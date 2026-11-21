@@ -1,0 +1,43 @@
+# Private spec (contains NAS details) — never commit
+MasterPrompt.docx
+*.docx
+!docs/**/*.docx
+
+# Secrets / local state
+.env
+.env.*
+!.env.example
+data/
+config/
+logs/
+temp/
+archive/
+*.db
+*.db-*
+*.sqlite*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+frontend/dist/
+coverage/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+.claude/
+docs/private/

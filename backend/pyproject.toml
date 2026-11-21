@@ -1,0 +1,65 @@
+[project]
+name = "downtube"
+version = "0.1.0"
+description = "Self-hosted YouTube archiving platform (likes + subscriptions, original quality up to 4K, MP4)"
+readme = "../README.md"
+license = { text = "MIT" }
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+  "sqlalchemy>=2.0.36",
+  "alembic>=1.14",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.6",
+  "httpx>=0.28",
+  "cryptography>=43",
+  "apscheduler>=3.10,<4",
+  "python-multipart>=0.0.12",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3",
+  "pytest-cov>=6",
+  "respx>=0.21",
+  "ruff>=0.8",
+  "mypy>=1.13",
+  "pip-audit>=2.7",
+]
+
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["downtube*"]
+
+[tool.setuptools.package-data]
+downtube = ["migrations/*.py", "migrations/versions/*.py", "migrations/*.mako", "alembic.ini"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = [
+  "integration: needs real Google credentials / network (skipped in CI)",
+  "media: needs ffmpeg/ffprobe binaries",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "BLE"]
+ignore = ["S101", "S603", "S607", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "B"]
+"downtube/migrations/**" = ["E501", "I"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = true
+plugins = ["pydantic.mypy"]
