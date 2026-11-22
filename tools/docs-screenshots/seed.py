@@ -268,6 +268,21 @@ with write_session() as s:
                     eta_s=[48, 173][idx],
                     started_at=now - timedelta(minutes=2),
                 )
+            elif idx == 5:  # sign-in-only video: "Download myself" (0.4.0)
+                j = DownloadJob(
+                    video_id=vid,
+                    user_id=u.id,
+                    kind=JobKind.archive,
+                    priority=50,
+                    status=JobStatus.failed,
+                    stage=JobStage.done,
+                    max_height=cap,
+                    attempts=1,
+                    max_attempts=5,
+                    error_code="age_restricted",
+                    error_message="Sign in to confirm your age. This video may be inappropriate for some users.",
+                    finished_at=now - timedelta(hours=1),
+                )
             elif idx == 6:
                 j = DownloadJob(
                     video_id=vid,

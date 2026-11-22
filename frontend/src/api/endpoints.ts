@@ -1,4 +1,4 @@
-import { api } from './client';
+import { api, uploadFile } from './client';
 import type * as T from './types';
 
 type Q = Record<string, string | number | boolean | null | undefined>;
@@ -28,6 +28,10 @@ export const endpoints = {
   library: (q: Q) => api<T.Page<T.MediaFileOut>>('/library', { query: q }),
   deleteVideo: (id: string, b: T.DeleteVideoRequest) =>
     api<T.DeleteVideoResult>(`/library/${id}/delete`, { method: 'POST', body: b }),
+  importFolder: () => api<T.ImportFolderOut>('/imports'),
+  scanImports: () => api<T.ImportFolderOut>('/imports/scan', { method: 'POST' }),
+  uploadImport: (jobId: number, file: File, onProgress?: (pct: number) => void, signal?: AbortSignal) =>
+    uploadFile<T.JobOut>(`/downloads/${jobId}/import`, file, { query: { filename: file.name }, onProgress, signal }),
   writeSidecars: (overwrite = false) => api<T.SidecarResult>('/library/sidecars', { method: 'POST', query: { overwrite } }),
   settings: () => api<T.SettingsOut>('/settings'),
   updateSettings: (u: T.SettingsUpdate) => api<T.SettingsOut>('/settings', { method: 'PUT', body: u }),

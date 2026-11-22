@@ -22,6 +22,12 @@ docker compose up -d
 yt-dlp breaks whenever YouTube changes its site. Update the image regularly, even when DownTube
 itself has no new release.
 
+### Upgrading to 0.4.0
+
+No action needed. The import folder `<archive root>/.import` is created on first use. Failed
+age-restricted downloads now offer **Download myself** (see
+[Importing files](#importing-files-you-downloaded)).
+
 ### Upgrading to 0.3.0
 
 1. Optional, in Google Cloud: **Google Auth Platform → Data access → Add or remove scopes**, add
@@ -132,9 +138,9 @@ contract, plus additional codes the downloader can emit.
 | `unavailable` | Private, deleted, removed or terminated video | No | Job `skipped` | Nothing. Archive record is kept. |
 | `geo_restricted` | Not available in the server's country | No | Job failed | Nothing. DownTube never bypasses geo restrictions. |
 | `drm` | Content is DRM-protected | No | Job failed | Nothing. DRM is never bypassed. |
-| `members_only` | Channel membership required | No | Job failed | Nothing. |
-| `age_restricted` | Age confirmation or sign-in required | No | Job failed | Nothing. |
-| `login_required` | YouTube asks for sign-in or cookies | No | Job failed | Nothing. DownTube does not use cookies to get around this. |
+| `members_only` | Channel membership required | No | Job failed | If your account is a member: **Download myself** (see [Importing files](#importing-files-you-downloaded)). |
+| `age_restricted` | Age confirmation or sign-in required | No | Job failed | **Download myself** with your own signed-in account and import the file. |
+| `login_required` | YouTube asks for sign-in or cookies | No | Job failed | As above. DownTube itself never uses cookies. |
 | `bot_check` | YouTube asks the server to confirm it is not a bot | Yes, at least 30 minutes | Job queued with long backoff | Wait. Reduce concurrency. Try another network if it persists. |
 | `network` | Timeouts, resets, DNS or 5xx errors | Yes | Exponential backoff | Check connectivity. |
 | `http_429` | Too many requests | Yes | Backoff | Lower concurrency or bandwidth. |
@@ -151,6 +157,38 @@ contract, plus additional codes the downloader can emit.
 
 Retries use exponential backoff: `min(2^attempts × 60 s, 6 h)`, with random jitter of ±20 %.
 Jobs have a maximum number of attempts (default 5). Retry, pause, resume or cancel a job with `POST /api/downloads/{id}/retry|cancel|pause|resume`.
+
+## Importing files you downloaded
+
+DownTube downloads without signing in to YouTube and never handles YouTube cookies. Videos that
+YouTube only shows to a signed-in account (age-restricted, members-only) therefore fail with
+`age_restricted`, `login_required` or `members_only`. To archive them anyway:
+
+1. **Downloads → Failed → Download myself** on the video. The dialog links to the video on YouTube
+   and shows a yt-dlp command for your own computer. It reads your browser's sign-in locally
+   (`--cookies-from-browser`), keeps the original streams up to the job's resolution limit, merges
+   to MP4 without re-encoding, embeds the metadata and puts the video ID in the file name. You need
+   [yt-dlp](https://github.com/yt-dlp/yt-dlp#installation) and ffmpeg on that computer. On Windows,
+   yt-dlp usually cannot read Chrome or Edge cookies; use Firefox.
+2. Give DownTube the file, either way:
+   - **Upload** it in the same dialog; or
+   - copy it into the **import folder**, `<archive root>/.import` (on Synology, for example
+     `/volume1/video/DownTube/.import`). The file name must contain the video ID in brackets, for
+     example `Title [dQw4w9WgXcQ].mp4`. DownTube scans the folder every 5 minutes; **Downloads →
+     Import folder → Scan now** scans immediately. Files must be unchanged for 30 seconds before they
+     are picked up, so a copy in progress is never taken.
+
+DownTube then checks the file: MP4 or MKV/WebM with a video stream (ffprobe), duration within 2 % (at
+least 2 s) of the YouTube duration, no embedded metadata naming a different video, and no larger than
+the resolution limit for that video. A file that passes is moved into the channel folder with the
+usual name, thumbnail and `.nfo`, and the job is marked completed. A file that fails stays where it
+was, with the reason shown in the Import folder list. Imports work for any video DownTube already
+knows (one with a download job or in your likes/subscriptions), not only failed ones. A video that is
+already archived is refused. Importing a video you deleted from the library lifts its exclusion.
+
+The import folder holds a `.plexignore` so Plex does not index files waiting there. Uploads go
+through the web server in one request; the DSM reverse proxy allows large uploads by default, other
+reverse proxies may need their request size limit raised (nginx `client_max_body_size`).
 
 ## Checking format compatibility
 

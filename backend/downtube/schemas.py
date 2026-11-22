@@ -447,3 +447,16 @@ class GoogleSettingsUpdate(ApiModel):
     google_client_secret: str | None = Field(default=None, max_length=255)
     allowed_emails: list[str] | None = Field(default=None, max_length=50)
     admin_emails: list[str] | None = Field(default=None, max_length=50)
+
+
+class ImportFileOut(ApiModel):
+    name: str
+    size_bytes: int
+    video_id: str | None
+    status: Literal["waiting", "failed", "imported"]
+    message: str | None
+
+
+class ImportFolderOut(ApiModel):
+    path: str
+    files: list[ImportFileOut]

@@ -95,6 +95,19 @@ def job_cleanup() -> None:
         log.info("cleanup removed %d sessions, %d oauth states", sessions, states)
 
 
+def job_imports() -> None:
+    """Pick up files the user copied into the import folder."""
+    from downtube.downloads import importer  # local import: importer depends on the download manager
+
+    try:
+        done = [f.name for f in importer.scan_folder() if f.status == "imported"]
+    except Exception:  # noqa: BLE001 - archive offline etc.; retried at the next interval
+        log.warning("import folder scan failed", exc_info=True)
+        return
+    if done:
+        log.info("import folder: imported %d file(s)", len(done))
+
+
 def backup_database(keep: int = BACKUPS_KEPT) -> Path | None:
     """Consistent online backup with the sqlite3 backup API; keeps the newest ``keep`` files."""
     cfg = get_config()
@@ -147,6 +160,7 @@ def _triggers() -> dict[str, IntervalTrigger | CronTrigger]:
         "metadata": CronTrigger(hour=4, minute=15, timezone=UTC),
         "cleanup": IntervalTrigger(hours=1, timezone=UTC),
         "backup": CronTrigger(hour=3, minute=30, timezone=UTC),
+        "imports": IntervalTrigger(minutes=5, timezone=UTC),
     }
 
 
@@ -158,9 +172,10 @@ _FUNCS = {
     "metadata": job_metadata,
     "cleanup": job_cleanup,
     "backup": backup_database,
+    "imports": job_imports,
 }
 # First run shortly after start (seconds); the rest wait for their interval.
-_STARTUP_DELAY = {"subscriptions": 20, "likes_poll": 40, "channels": 120, "cleanup": 5}
+_STARTUP_DELAY = {"subscriptions": 20, "likes_poll": 40, "channels": 120, "cleanup": 5, "imports": 90}
 
 
 def _mark_interrupted() -> None:

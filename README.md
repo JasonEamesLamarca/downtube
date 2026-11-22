@@ -44,6 +44,11 @@ interrupted downloads have been verified live. Current release: see the [CHANGEL
 - **Unsubscribe from the app.** Unsubscribing turns the channel's archiving off and keeps what is
   already archived. Removing likes and unsubscribing use an optional extra Google permission
   that you grant only if you want these actions; otherwise DownTube only reads your account.
+- **Import what DownTube can't fetch.** Age-restricted and other sign-in-only videos fail in the
+  queue. **Download myself** gives a ready-made yt-dlp command to run on your own computer, where
+  you are signed in to YouTube, and you upload the file or copy it into the import folder
+  (`<archive>/.import`). DownTube checks it (container, duration, video ID, resolution limit) and
+  archives it like any other download. Every download also links to the video on YouTube.
 - **Quota-aware.** Tracks YouTube Data API usage against a daily budget.
 - **Web UI and REST API.** Browse subscriptions, likes, jobs and the library; OpenAPI docs at `/api/docs` (signed-in users only).
 
@@ -134,7 +139,9 @@ data and can be regenerated with the tools in [tools/](tools/docs-screenshots/RE
   downloading, storing and offline use of YouTube content. DownTube does not grant you any
   permission under those terms.
 - DownTube respects access controls. It reports DRM, paywalls, geographic restrictions,
-  age and membership gates, and login requirements. It never attempts to bypass them.
+  age and membership gates, and login requirements. It never attempts to bypass them, and it never
+  receives or stores YouTube cookies. For sign-in-only videos you can download a file yourself, with
+  your own account, and import it; that download is yours and must follow the same rules.
 - DownTube does not redistribute content. Do not share the archive or make it available to others.
 - This notice is not legal advice.
 

@@ -292,3 +292,16 @@ export interface DeleteVideoResult {
   warnings: string[];
 }
 export interface SidecarResult { written: number; skipped: number; failed: number }
+
+export interface ImportFileOut {
+  name: string;
+  size_bytes: number;
+  video_id: string | null;
+  status: 'waiting' | 'failed' | 'imported';
+  message: string | null;
+}
+
+export interface ImportFolderOut {
+  path: string;
+  files: ImportFileOut[];
+}

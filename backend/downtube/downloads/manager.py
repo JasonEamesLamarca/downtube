@@ -194,6 +194,139 @@ def write_nfo(media: Path, video: Video, channel_title: str | None) -> Path:
     return target
 
 
+# --------------------------------------------------------------------------- finalize
+
+
+def finalize_into_archive(
+    job_id: int,
+    video_id: str,
+    selection: Selection,
+    probe: Probe,
+    media: Path,
+    tmp: Path,
+    root: Path,
+    st: SettingsOut,
+    best: int | None,
+) -> None:
+    """Move a validated file into the archive, write sidecars and record it (job → completed)."""
+    ext = selection.container
+    with write_session() as s:
+        video = s.get(Video, video_id)
+        assert video is not None
+        channel = s.get(Channel, video.channel_id) if video.channel_id else None
+        if channel is None:
+            channel = s.get(Channel, "_unknown")
+            if channel is None:
+                channel = Channel(id="_unknown", title="Unknown Channel")
+                s.add(channel)
+                s.flush()
+        folder = paths.channel_folder_name(s, channel)
+        filename = paths.video_filename(video, ext)
+        old = jobs.current_media(s, video_id)
+        old_path = Path(old.root_path) / old.rel_path if old else None
+        channel_title = channel.title
+        snapshot = Video(
+            id=video.id,
+            title=video.title,
+            description=video.description,
+            published_at=video.published_at,
+            duration_s=video.duration_s,
+        )
+        job = s.get(DownloadJob, job_id)
+        assert job is not None
+        available = (job.selection or {}).get("available_formats")
+
+    if old_path is not None:
+        try:  # DB-recorded paths are re-validated before any rename/delete
+            old_path = paths.resolve_within_mounts(old_path)
+        except paths.StorageError:
+            log.warning("job %s: previous archive path is outside the storage mounts; leaving it untouched", job_id)
+            old_path = None
+    (root / folder).mkdir(parents=True, exist_ok=True)
+    dest = paths.safe_join(root, folder, filename)
+    superseded_action: str | None = None
+
+    if old_path is not None and old_path.exists() and old_path.resolve() == dest.resolve():
+        # Upgrade to the same file name: stage the new copy, then swap.
+        staged = dest.with_name(dest.name + ".downtube-new")
+        place_file(media, staged)
+        if st.keep_superseded_copies:
+            kept = unique_target(dest.with_name(f"{dest.stem}.superseded{dest.suffix}"))
+            os.replace(dest, kept)
+            superseded_action = f"kept:{kept.name}"
+        else:
+            superseded_action = "deleted"
+        os.replace(staged, dest)
+        _fsync_dir(dest.parent)
+    else:
+        dest = unique_target(dest)
+        place_file(media, dest)  # new copy is in place before the old one is touched
+        if old_path is not None and old_path.exists():
+            if st.keep_superseded_copies:
+                kept = unique_target(old_path.with_name(f"{old_path.stem}.superseded{old_path.suffix}"))
+                os.replace(old_path, kept)
+                superseded_action = f"kept:{kept.name}"
+            else:
+                old_path.unlink()
+                superseded_action = "deleted"
+
+    # Optional sidecars (Plex local assets / metadata).
+    base = dest.with_suffix("")
+    thumb = tmp / "media.jpg"
+    if st.write_thumbnails and thumb.is_file():
+        try:
+            place_file(thumb, base.with_name(base.name + ".jpg"))
+        except OSError:
+            log.warning("job %s: could not write thumbnail", job_id)
+    if st.write_nfo:
+        try:
+            write_nfo(dest, snapshot, channel_title)
+        except OSError:
+            log.warning("job %s: could not write .nfo", job_id)
+
+    rel = dest.relative_to(root)
+    with write_session() as s:
+        prev = jobs.current_media(s, video_id)
+        if prev is not None:
+            prev.is_current = False
+            prev.superseded_at = utcnow()
+            prev.superseded_action = superseded_action
+            s.flush()
+        mf = MediaFile(
+            video_id=video_id,
+            root_path=str(root),
+            rel_path=str(rel),
+            container=ext,
+            width=probe.width,
+            height=probe.height,
+            fps=probe.fps,
+            vcodec=probe.vcodec,
+            acodec=probe.acodec,
+            duration_s=probe.duration_s,
+            size_bytes=dest.stat().st_size,
+            is_hdr=probe.is_hdr,
+            source_format_id=selection.format_spec,
+            source_format_note="; ".join(selection.reasons)[:4000],
+            max_height_requested=selection.effective_cap,
+            best_available_height=best,
+            available_formats=available,
+            is_current=True,
+        )
+        s.add(mf)
+        s.flush()
+        job = s.get(DownloadJob, job_id)
+        assert job is not None
+        job.status, job.stage = JobStatus.completed, JobStage.done
+        job.progress_pct = 100.0
+        job.speed_bps = None
+        job.eta_s = 0
+        job.media_file_id = mf.id
+        job.finished_at = utcnow()
+        job.error_code = job.error_message = None
+    shutil.rmtree(tmp, ignore_errors=True)
+    log.info("job %s completed: %s (%sx%s %s/%s)", job_id, rel, probe.width, probe.height, probe.vcodec, probe.acodec)
+
+
 # --------------------------------------------------------------------------- manager
 
 
@@ -539,124 +672,7 @@ class DownloadManager:
         st: SettingsOut,
         best: int | None,
     ) -> None:
-        ext = selection.container
-        with write_session() as s:
-            video = s.get(Video, video_id)
-            assert video is not None
-            channel = s.get(Channel, video.channel_id) if video.channel_id else None
-            if channel is None:
-                channel = s.get(Channel, "_unknown")
-                if channel is None:
-                    channel = Channel(id="_unknown", title="Unknown Channel")
-                    s.add(channel)
-                    s.flush()
-            folder = paths.channel_folder_name(s, channel)
-            filename = paths.video_filename(video, ext)
-            old = jobs.current_media(s, video_id)
-            old_path = Path(old.root_path) / old.rel_path if old else None
-            channel_title = channel.title
-            snapshot = Video(
-                id=video.id,
-                title=video.title,
-                description=video.description,
-                published_at=video.published_at,
-                duration_s=video.duration_s,
-            )
-            job = s.get(DownloadJob, job_id)
-            assert job is not None
-            available = (job.selection or {}).get("available_formats")
-
-        if old_path is not None:
-            try:  # DB-recorded paths are re-validated before any rename/delete
-                old_path = paths.resolve_within_mounts(old_path)
-            except paths.StorageError:
-                log.warning("job %s: previous archive path is outside the storage mounts; leaving it untouched", job_id)
-                old_path = None
-        (root / folder).mkdir(parents=True, exist_ok=True)
-        dest = paths.safe_join(root, folder, filename)
-        superseded_action: str | None = None
-
-        if old_path is not None and old_path.exists() and old_path.resolve() == dest.resolve():
-            # Upgrade to the same file name: stage the new copy, then swap.
-            staged = dest.with_name(dest.name + ".downtube-new")
-            place_file(media, staged)
-            if st.keep_superseded_copies:
-                kept = unique_target(dest.with_name(f"{dest.stem}.superseded{dest.suffix}"))
-                os.replace(dest, kept)
-                superseded_action = f"kept:{kept.name}"
-            else:
-                superseded_action = "deleted"
-            os.replace(staged, dest)
-            _fsync_dir(dest.parent)
-        else:
-            dest = unique_target(dest)
-            place_file(media, dest)  # new copy is in place before the old one is touched
-            if old_path is not None and old_path.exists():
-                if st.keep_superseded_copies:
-                    kept = unique_target(old_path.with_name(f"{old_path.stem}.superseded{old_path.suffix}"))
-                    os.replace(old_path, kept)
-                    superseded_action = f"kept:{kept.name}"
-                else:
-                    old_path.unlink()
-                    superseded_action = "deleted"
-
-        # Optional sidecars (Plex local assets / metadata).
-        base = dest.with_suffix("")
-        thumb = tmp / "media.jpg"
-        if st.write_thumbnails and thumb.is_file():
-            try:
-                place_file(thumb, base.with_name(base.name + ".jpg"))
-            except OSError:
-                log.warning("job %s: could not write thumbnail", job_id)
-        if st.write_nfo:
-            try:
-                write_nfo(dest, snapshot, channel_title)
-            except OSError:
-                log.warning("job %s: could not write .nfo", job_id)
-
-        rel = dest.relative_to(root)
-        with write_session() as s:
-            prev = jobs.current_media(s, video_id)
-            if prev is not None:
-                prev.is_current = False
-                prev.superseded_at = utcnow()
-                prev.superseded_action = superseded_action
-                s.flush()
-            mf = MediaFile(
-                video_id=video_id,
-                root_path=str(root),
-                rel_path=str(rel),
-                container=ext,
-                width=probe.width,
-                height=probe.height,
-                fps=probe.fps,
-                vcodec=probe.vcodec,
-                acodec=probe.acodec,
-                duration_s=probe.duration_s,
-                size_bytes=dest.stat().st_size,
-                is_hdr=probe.is_hdr,
-                source_format_id=selection.format_spec,
-                source_format_note="; ".join(selection.reasons)[:4000],
-                max_height_requested=selection.effective_cap,
-                best_available_height=best,
-                available_formats=available,
-                is_current=True,
-            )
-            s.add(mf)
-            s.flush()
-            job = s.get(DownloadJob, job_id)
-            assert job is not None
-            job.status, job.stage = JobStatus.completed, JobStage.done
-            job.progress_pct = 100.0
-            job.speed_bps = None
-            job.eta_s = 0
-            job.media_file_id = mf.id
-            job.finished_at = utcnow()
-            job.error_code = job.error_message = None
-        shutil.rmtree(tmp, ignore_errors=True)
-        log.info(
-            "job %s completed: %s (%sx%s %s/%s)", job_id, rel, probe.width, probe.height, probe.vcodec, probe.acodec
-        )
+        finalize_into_archive(job_id, video_id, selection, probe, media, tmp, root, st, best)
 
     # -- outcomes
     def _handle_stop(self, job_id: int) -> None:
@@ -757,6 +773,7 @@ def shutdown(timeout: float = 30.0) -> None:
 
 __all__ = [
     "DownloadManager",
+    "finalize_into_archive",
     "JobKind",
     "backoff_seconds",
     "get_manager",
