@@ -184,14 +184,10 @@ def start() -> None:
         now = datetime.now(UTC)
         for name, trig in _triggers().items():
             delay = _STARTUP_DELAY.get(name)
-            sch.add_job(
-                _FUNCS[name],
-                trig,
-                id=name,
-                name=name,
-                next_run_time=(now + timedelta(seconds=delay)) if delay is not None else None,
-                replace_existing=True,
-            )
+            # Passing next_run_time=None to APScheduler adds the job *paused*; leave it out so the
+            # trigger computes the first run.
+            first_run = {"next_run_time": now + timedelta(seconds=delay)} if delay is not None else {}
+            sch.add_job(_FUNCS[name], trig, id=name, name=name, replace_existing=True, **first_run)
         sch.start()
         _scheduler = sch
         runtime_status.set_flag("scheduler", True)
