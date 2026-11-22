@@ -134,21 +134,19 @@ resources. Recommended starting settings:
 - Set a **download window**, for example `01:00-07:00`, so downloads run overnight.
 - Set a **bandwidth limit** if the NAS also serves streams during the day.
 - Keep the **minimum free space** setting (default 100 GB) so the archive volume never fills completely.
-- In Container Manager, you can set a CPU and memory limit in the container's settings. Start
-  with a memory limit of 2 GB.
+- Limit memory, not CPU: the compose file sets `mem_limit: 2g`. DSM kernels refuse CPU quotas, so do not
+  add `cpus:` or a CPU limit in Container Manager.
 
 ## 7. First-run setup and sign-in
 
-Google does not accept a raw IP for the redirect, so use an SSH tunnel to `localhost` or an HTTPS
-hostname. The usual approach:
-
-```bash
-ssh -L 8092:localhost:8092 admin@nas.example.com
-```
-
-Open `http://localhost:8092/setup` in your local browser and follow
+Google does not accept a raw IP for the redirect, so you need an HTTPS hostname. Set it up with
+[Public HTTPS with DSM reverse proxy](#public-https-with-dsm-reverse-proxy) first, then open
+`https://downtube.example.com/setup` and follow
 [installation.md](installation.md#8-first-run-setup-and-first-sign-in). Get the setup code with
-`docker logs downtube | grep "setup code"`. You only need the tunnel to sign in or reconnect.
+`docker logs downtube | grep "setup code"`.
+
+An SSH tunnel to `localhost:8092` does **not** work on DSM: its SSH server forbids TCP forwarding.
+Use the reverse proxy instead.
 
 ## Public HTTPS with DSM reverse proxy
 
@@ -157,7 +155,8 @@ page then becomes public, so only do it deliberately.
 
 1. **DNS.** At your DNS provider, create a `CNAME` record `downtube.example.com` pointing to your
    DDNS name (for example `yourname.example-ddns.net`).
-2. **Router.** Forward TCP ports **80** and **443** to the NAS. Do not forward 8092.
+2. **Router.** Forward TCP ports **80** and **443** to the NAS. Do not forward 8092. With double NAT
+   (an ISP router in front of your own router), forward 80 and 443 on **every** router in the chain.
 3. **Certificate.** In **Control Panel > Security > Certificate**, add a certificate from Let's Encrypt
    for `downtube.example.com`. Port 80 must stay forwarded so DSM can answer the ACME challenge.
    Assign the certificate to the reverse proxy service if DSM does not do it automatically.
@@ -180,8 +179,9 @@ page then becomes public, so only do it deliberately.
    sends. Recreate the project after changing `.env`.
 6. **Google.** Register `https://downtube.example.com/api/auth/callback` in the OAuth client.
 7. **Hairpin NAT.** If devices on your LAN cannot reach `downtube.example.com` when they are on the same
-   network, your router does not support NAT loopback. Add a local DNS record that points
-   `downtube.example.com` to the NAS LAN address. DownTube needs no change for this.
+   network, your router does not support NAT loopback. Add a local DNS record (for example a Pi-hole
+   local DNS record) that points `downtube.example.com` to the NAS LAN address. DownTube needs no
+   change for this. See [Troubleshooting](#troubleshooting) for the DHCP pitfall.
 
 Consider also limiting who can reach the hostname with DSM's firewall.
 
@@ -213,13 +213,31 @@ What the script does:
   empty `DOWNTUBE_SECRET_KEY` is generated. Keys that exist only on the NAS are kept under
   `# ---- Local additions`. Secrets are never printed, and the file is mode `600`. Values you set on the
   NAS (for example in section [Public HTTPS](#public-https-with-dsm-reverse-proxy)) survive later deploys.
-- **Gets the image.** It runs `docker pull`, or with `SHIP=1` streams the image over SSH. Some Synology
-  setups cannot build or pull images on the NAS, so `SHIP=1` is the fallback.
+- **Gets the image.** It runs `docker pull` on the NAS, or with `SHIP=1` streams a locally built image over
+  SSH. It never builds on the NAS: DNS often fails inside the default bridge network during a build.
 - **Starts and checks.** It runs `docker compose up -d --no-build` and waits for `/api/health`.
 - **Checks DNS and HTTPS from inside the container.** If it fails, add
   `dns: [1.1.1.1, 8.8.8.8]` under the `downtube` service in the repository's `docker-compose.yml`
   (so the next deploy keeps it) and run the script again.
 - **Prints the setup code** if setup is still needed, together with the `/setup` address.
+
+To upgrade later, set the image tag (for example `:0.2.1`) in your compose file and run the script again.
+Existing `.env` values and the database are kept.
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `docker compose up` fails with `NanoCPUs can not be set` | The DSM kernel has no CPU quota support. | Remove `cpus:` from the compose file. Keep `mem_limit`. The repository's file already does this. |
+| `/api/health` shows `archive_writable: false` | The shared folder grants write access through a group ACL (often `administrators`, gid 101) that the container user lacks. | Add `group_add: ["101"]` (or the gid that has access) to the service, or grant the user explicit access in DSM. See [Shared-folder ACLs](#shared-folder-acls). |
+| `ssh -L 8092:localhost:8092` fails or does nothing | DSM's sshd forbids TCP forwarding. | Use the HTTPS reverse proxy. |
+| Build or pull on the NAS fails with DNS errors | Name resolution is broken in the default bridge during builds. | Pull the published image (the deploy script does) or use `SHIP=1`. |
+| `scp` is not found | DSM has no `scp` by default. | Stream the file over ssh (`ssh nas 'cat > file' < file`). The deploy script does this. |
+| Site unreachable from the internet; Let's Encrypt fails | Double NAT, or ports 80/443 not forwarded on one router. | Forward 80 and 443 on every router in front of the NAS. |
+| Reachable from outside but times out from the LAN, or only sometimes | No NAT loopback on the router, so the public name resolves to your public IP. | Add split DNS (a local record pointing the hostname at the NAS LAN IP). Then make sure every LAN client uses only that DNS server. If DHCP hands out several DNS servers (router, ISP, 1.1.1.1), clients switch between them at random and the name works intermittently. Set DHCP to hand out only your local resolver. |
+
+More general problems (OAuth, Google Cloud, reachability checks) are in
+[operations.md](operations.md#troubleshooting).
 
 ## Remote access with Tailscale
 
@@ -253,7 +271,7 @@ them, which is slow on a NAS CPU. See [operations.md](operations.md#checking-for
 ## Security checklist
 
 - [ ] DownTube is reachable only from the LAN, a VPN, or the HTTPS reverse proxy you chose.
-- [ ] Router forwards only 80 and 443 to the NAS (if public), never 8092.
+- [ ] Routers forward only 80 and 443 to the NAS (if public), never 8092.
 - [ ] `.env` is readable only by administrators (`chmod 600`).
 - [ ] The allowed Google accounts (setup page or `DOWNTUBE_ALLOWED_EMAILS`) list only accounts you trust.
 - [ ] The DSM user has no administrator rights.

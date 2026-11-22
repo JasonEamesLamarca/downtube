@@ -196,6 +196,21 @@ Finished files are moved into the archive atomically, through a `*.downtube-part
 half-written file is never listed as a completed archive. Leftover `*.downtube-partial` files
 in the archive can usually be deleted when no job is running.
 
+## Troubleshooting
+
+Synology-specific problems (CPU quota error, ACLs, SSH forwarding, DNS, double NAT) are in
+[synology.md](synology.md#troubleshooting). Other lessons from running DownTube in production:
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Sign-in breaks after a week | The Google consent screen is in *Testing*, where refresh tokens expire after 7 days. | In Google Cloud, set the publishing status to **In production**, then reconnect. The unverified-app warning is expected for personal use. |
+| Google rejects the consent screen branding | The app home page or privacy policy link uses a domain that is not an authorised domain. | Add the domain of every link under **Authorised domains**. If the privacy policy is this repository's `PRIVACY.md` on github.com, add `github.com`. |
+| Lost the OAuth client secret | The new Google Auth Platform shows the secret only once, at creation. | Create a new secret in the client, then enter it in **Settings → Google sign-in & access**. |
+| The site works from some networks and not others | A router without NAT loopback, split DNS missing, or clients using a mix of DNS servers. | Test from a phone on mobile data first. If that works, fix DNS inside the LAN (see synology.md). |
+| An online "is it up" or fetch service cannot reach the site, but browsers can | Some fetch services are blocked or refused by your host or network. | Do not rely on one service. Check from a phone on mobile data or a multi-location checker. |
+| Downloads were running when the container restarted | Expected during an upgrade. | Nothing to do. Jobs return to `queued`, resume from the partial files in `/temp`, and the restart does not use up a retry attempt. |
+| Health is `degraded`, or sign-in is not configured | Missing secret, or setup is not complete. | Read `docker compose logs downtube`. For a new install, open `/setup` and use the setup code from the log. |
+
 ## Logs
 
 | Source | Location | Notes |

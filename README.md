@@ -7,6 +7,12 @@ media server such as Plex to index.
 
 DownTube is not affiliated with or endorsed by Google or YouTube.
 
+![DownTube dashboard (demo data)](docs/images/screenshots/dashboard.png)
+
+**Status.** Used in production since v0.2 on a Synology NAS behind a reverse proxy with HTTPS. Real Google sign-in
+(OAuth with PKCE), the YouTube Data API v3, subscription and like archiving, and restart recovery of
+interrupted downloads have been verified live. Current release: see the [CHANGELOG](CHANGELOG.md).
+
 > **Use responsibly.** Archiving YouTube content is restricted by YouTube's Terms of Service
 > and API policies. Only archive content you have the right to keep. See
 > [Legal and responsibility notice](#legal-and-responsibility-notice) below.
@@ -77,6 +83,7 @@ You do not install these yourself.
 
 | Document | Contents |
 |---|---|
+| [docs/DownTube-Guide.docx](docs/DownTube-Guide.docx) | End-to-end guide (Word document): from Google Cloud setup to daily use |
 | [docs/installation.md](docs/installation.md) | Google Cloud setup, configuration, first login, archiving options |
 | [docs/synology.md](docs/synology.md) | Synology DSM 7 and Container Manager guide |
 | [docs/quality-policy.md](docs/quality-policy.md) | Resolution, codec, audio and container rules in detail |
@@ -87,6 +94,9 @@ You do not install these yourself.
 | [SECURITY.md](SECURITY.md) | Security design and how to report vulnerabilities |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup and contribution workflow |
 | [CHANGELOG.md](CHANGELOG.md) | Release history |
+
+Screenshots and diagrams used in the guide live in [docs/images/](docs/images/). They use fictional demo
+data and can be regenerated with the tools in [tools/](tools/docs-screenshots/README.md).
 
 ## Known limitations
 
@@ -99,7 +109,8 @@ You do not install these yourself.
   available as VP9 or AV1. These are stored in MP4 and some Plex clients will transcode them.
   See [docs/quality-policy.md](docs/quality-policy.md#5-mp4-compatibility).
 - **Google OAuth redirect URIs cannot be raw IP addresses.** Use `localhost` with an SSH
-  tunnel, or an HTTPS hostname under a public domain. A private LAN IP such as `192.168.x.x`
+  tunnel (not possible on Synology DSM, which forbids TCP forwarding), or an HTTPS hostname
+  under a public domain. A private LAN IP such as `192.168.x.x`
   is rejected by Google.
 - **Unverified-app warning.** Because DownTube uses a sensitive scope and is not a verified
   app, Google shows a warning screen during consent. The limit is 100 users over the life of the project.

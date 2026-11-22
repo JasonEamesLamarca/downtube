@@ -29,6 +29,10 @@ DownTube uses only this API for discovery. It does not use the search API.
    - `https://www.googleapis.com/auth/userinfo.profile`
    - `https://www.googleapis.com/auth/youtube.readonly`
 5. **Test users**: add your own Google account.
+6. **Branding** (new Google Auth Platform): set an app home page and a privacy policy link, for
+   example this repository's `PRIVACY.md` on GitHub. The domain of every link must be listed under
+   **Authorised domains**. For `github.com` links, add `github.com`; for your own hostname, add the
+   parent domain (for example `example.com`).
 
 ### Testing or Production
 
@@ -55,7 +59,8 @@ DownTube still handles revoked or expired tokens. If a token fails, the app asks
    <DOWNTUBE_BASE_URL>/api/auth/callback
    ```
 
-5. Select **Create** and copy the **Client ID** and **Client secret**.
+5. Select **Create** and copy the **Client ID** and **Client secret**. The newer Google Auth
+   Platform shows the secret only once, at creation. Copy it now, or create a new secret later.
 
 ### Redirect URI rules
 
@@ -75,6 +80,9 @@ Use this for a personal installation. Forward the port from your browser machine
 ```bash
 ssh -L 8092:localhost:8092 user@nas.example.com
 ```
+
+This needs a host whose SSH server allows TCP forwarding. Synology DSM does not, so on a NAS use
+Option B.
 
 Then open <http://localhost:8092> in your local browser. The OAuth redirect goes to your
 local machine, which the tunnel forwards to DownTube. You only need the tunnel when you sign in
