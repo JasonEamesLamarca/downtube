@@ -68,9 +68,10 @@ def create_app(config: Config | None = None, *, start_background: bool | None = 
         _announce_setup_code(cfg)
         if background:
             from downtube import scheduler
-            from downtube.downloads import manager
+            from downtube.downloads import importer, manager
 
             manager.startup()
+            importer.clean_stale_uploads()
             scheduler.start()
         log.info("DownTube %s started (base_url=%s)", __version__, cfg.base_url)
         try:

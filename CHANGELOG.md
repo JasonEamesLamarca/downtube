@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-22
+
+### Added
+
+- **Download myself / import.** Videos YouTube only serves to a signed-in account (age-restricted,
+  members-only) can now be archived without giving DownTube any cookies: **Downloads → Download myself**
+  shows a ready-made yt-dlp command for your own computer (reads your browser's sign-in locally, keeps
+  the original streams up to the job's limit, MP4 by stream copy, metadata embedded) and lets you upload
+  the resulting file. DownTube validates it (container, duration, embedded video ID, resolution limit)
+  and archives it with the usual name, thumbnail and `.nfo`; the job is marked completed.
+- **Import folder** `<archive root>/.import`: files named `…[VIDEOID].mp4|mkv|webm` are imported
+  automatically every 5 minutes or with **Scan now**; problems are listed on the Downloads page.
+  A `.plexignore` keeps Plex out of the folder.
+- **YouTube links** on every download.
+- API: `PUT /api/downloads/{id}/import`, `GET /api/imports`, `POST /api/imports/scan`.
+
 ## [0.3.1] - 2026-11-22
 
 ### Fixed

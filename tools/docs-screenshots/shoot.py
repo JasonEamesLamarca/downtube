@@ -81,6 +81,15 @@ async def main():
                     await pg.wait_for_timeout(500)
                     await pg.evaluate(MASK)
                     await pg.screenshot(path=f"{OUT}/{name}.png")
+                # 0.4.0: download a sign-in-only video yourself and import it
+                await pg.goto("http://localhost:8802/downloads")
+                await pg.wait_for_timeout(1500)
+                await pg.get_by_role("tab", name="Failed").click()
+                await pg.wait_for_timeout(800)
+                await pg.locator('button.btn-primary[aria-label$=" myself"]').first.click()
+                await pg.wait_for_timeout(500)
+                await pg.evaluate(MASK)
+                await pg.screenshot(path=f"{OUT}/download-myself.png")
             await ctx.close()
         # mobile
         ctx = await b.new_context(

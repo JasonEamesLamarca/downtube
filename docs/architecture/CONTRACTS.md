@@ -175,6 +175,7 @@ def refresh_stale_metadata(max_age_days=25)               # API data retention: 
     2026-10-15 - Video Title [VIDEOID].mp4
     2026-10-15 - Video Title [VIDEOID].jpg       (optional thumbnail, Plex local asset)
     2026-10-15 - Video Title [VIDEOID].nfo       (title + YouTube description; Kodi movie format, default on)
+  .import/                            user-provided files waiting for import (+ .plexignore, .uploading/)
 /temp/jobs/<job_id>/                  partial downloads (separate from archive)
 ```
 Finalization: copy/move from temp to `<final>.downtube-partial` in the target directory,
@@ -229,6 +230,9 @@ Finalization: copy/move from temp to `<final>.downtube-partial` in the target di
 | GET `/downloads/counts` | → `JobCounts` |
 | POST `/downloads` | `ManualEnqueueRequest` → `JobOut` |
 | POST `/downloads/{id}/retry|cancel|pause|resume` | → `JobOut` |
+| PUT `/downloads/{id}/import?filename=` | raw file body → `JobOut` (completed). Validates (ffprobe container, duration ±2 %, embedded video ID, ≤ job cap) and archives the file; 404, 409 `already_archived` / `job_running`, 422 `invalid_file` / `wrong_video` / `duration_mismatch` / `too_large` / `unsupported_container` / `empty_upload`, 507 `disk_space` |
+| GET `/imports` | → `ImportFolderOut` (files waiting in `<archive_root>/.import`, last problem per file) |
+| POST `/imports/scan` | → `ImportFolderOut` (imports every stable file named `…[VIDEOID].ext`; also runs every 5 min) |
 | GET `/library?q=&channel_id=&sort=date|title|size|height&order=&page=&page_size=` | → `Page[MediaFileOut]` |
 | GET `/library/{video_id}/stream` | video bytes (HTTP Range), only the DB-recorded file |
 | GET `/library/{video_id}/thumbnail` | jpeg if local thumbnail exists |
@@ -247,7 +251,7 @@ Finalization: copy/move from temp to `<final>.downtube-partial` in the target di
 | PUT `/admin/google` (admin) | `GoogleSettingsUpdate` → `GoogleSettingsOut` (409 `cannot_remove_self`) |
 
 Errors: `{"error": {"code", "message"}}`; 401 unauthenticated, 403 forbidden/CSRF, 404, 409
-conflict/confirmation, 422 validation, 429 rate limit, 503 quota/unavailable.
+conflict/confirmation, 422 validation, 429 rate limit, 503 quota/unavailable, 507 disk space.
 OpenAPI: `/api/docs` (Swagger) and `/api/openapi.json`.
 
 Every query is scoped to the session user (`user_id`), except global media (a MediaFile is

@@ -36,6 +36,9 @@ When you sign in with Google, DownTube stores:
 
 Your YouTube watch history is not accessed. The app does not use the search API.
 
+DownTube never receives your YouTube or Google browser cookies. The **Download myself** command reads
+them on your own computer, inside yt-dlp, and only the resulting video file is sent to DownTube.
+
 ### OAuth scopes requested
 
 | Scope | Purpose |

@@ -4,6 +4,8 @@ import { endpoints } from '../api/endpoints';
 import type { JobOut, JobStatus, ResolutionCap } from '../api/types';
 import { ErrorNote, PageHeader, Pagination, ProgressBar, ResolutionNote, ResolutionSelect, Spinner, StateBadge, Thumb } from '../components/ui';
 import { extractVideoId, formatBytes, formatEta, formatRelative, formatSpeed } from '../lib/format';
+import { SIGN_IN_ERRORS } from '../lib/ytdlp';
+import { ImportDialog, ImportFolderCard, YouTubeLink } from '../components/ManualImport';
 
 type Tab = { key: string; label: string; status: JobStatus; counts: JobStatus[] };
 const TABS: Tab[] = [
@@ -16,7 +18,7 @@ const TABS: Tab[] = [
   { key: 'other', label: 'Other', status: 'unsupported', counts: ['unsupported', 'skipped'] },
 ];
 
-function JobRow({ job, onAction, busy }: { job: JobOut; onAction: (a: 'retry' | 'cancel' | 'pause' | 'resume') => void; busy: boolean }) {
+function JobRow({ job, onAction, onImport, busy }: { job: JobOut; onAction: (a: 'retry' | 'cancel' | 'pause' | 'resume') => void; onImport: () => void; busy: boolean }) {
   const s = job.status;
   const can = {
     pause: s === 'running' || s === 'queued',
@@ -25,6 +27,7 @@ function JobRow({ job, onAction, busy }: { job: JobOut; onAction: (a: 'retry' | 
     retry: s === 'failed' || s === 'cancelled' || s === 'unsupported' || s === 'skipped',
   };
   const name = job.title ?? job.video_id;
+  const needsAccount = SIGN_IN_ERRORS.has(job.error_code ?? '');
   return (
     <li className="card flex flex-wrap items-center gap-3 p-3">
       <Thumb src={job.thumbnail_url} />
@@ -42,13 +45,19 @@ function JobRow({ job, onAction, busy }: { job: JobOut; onAction: (a: 'retry' | 
         {s !== 'running' && s !== 'completed' && job.error_message && (
           <p className="mt-1 text-xs text-red-700 dark:text-red-400">{job.error_code ? `${job.error_code}: ` : ''}{job.error_message}</p>
         )}
+        {needsAccount && s === 'failed' && (
+          <p className="mt-1 text-xs">YouTube needs a signed-in account for this video. Use <strong>Download myself</strong> to fetch it with your own account and import the file.</p>
+        )}
+        {s === 'completed' && job.selection?.imported === true && <p className="text-xs text-slate-500">Imported from a file you provided.</p>}
         <p className="text-xs text-slate-500">
           Attempt {job.attempts}/{job.max_attempts}
           {job.next_attempt_at && s === 'queued' && <> · next try {formatRelative(job.next_attempt_at)}</>}
         </p>
       </div>
       <StateBadge state={s} />
-      <div className="flex gap-1">
+      <div className="flex flex-wrap gap-1">
+        <YouTubeLink videoId={job.video_id} title={name} />
+        {can.retry && <button className={`btn ${needsAccount ? 'btn-primary' : ''}`} disabled={busy} onClick={onImport} aria-label={`Download ${name} myself`}>Download myself</button>}
         {can.pause && <button className="btn" disabled={busy} onClick={() => onAction('pause')} aria-label={`Pause ${name}`}>Pause</button>}
         {can.resume && <button className="btn" disabled={busy} onClick={() => onAction('resume')} aria-label={`Resume ${name}`}>Resume</button>}
         {can.retry && <button className="btn" disabled={busy} onClick={() => onAction('retry')} aria-label={`Retry ${name}`}>Retry</button>}
@@ -66,6 +75,8 @@ export default function DownloadsPage() {
   const [input, setInput] = useState('');
   const [maxH, setMaxH] = useState<ResolutionCap>(null);
   const [inputErr, setInputErr] = useState<string | null>(null);
+  const [importing, setImporting] = useState<JobOut | null>(null);
+  const folder = useQuery({ queryKey: ['imports'], queryFn: endpoints.importFolder, refetchInterval: 30000 });
   const t = TABS.find((x) => x.key === tab)!;
   const status = t.key === 'other' ? otherStatus : t.status;
 
@@ -113,6 +124,8 @@ export default function DownloadsPage() {
         {add.isSuccess && <p role="status" className="text-sm text-green-700 dark:text-green-400">Added to the queue.</p>}
       </form>
 
+      <ImportFolderCard />
+
       <div role="tablist" aria-label="Download status" className="mb-3 flex flex-wrap gap-1">
         {TABS.map((x) => (
           <button key={x.key} role="tab" aria-selected={tab === x.key} className={`btn ${tab === x.key ? 'btn-primary' : ''}`}
@@ -136,7 +149,7 @@ export default function DownloadsPage() {
           <>
             <ul className="space-y-2">
               {list.data.items.map((j) => (
-                <JobRow key={j.id} job={j} busy={act.isPending} onAction={(a) => act.mutate({ id: j.id, a })} />
+                <JobRow key={j.id} job={j} busy={act.isPending} onAction={(a) => act.mutate({ id: j.id, a })} onImport={() => setImporting(j)} />
               ))}
               {list.data.items.length === 0 && <li className="p-4 text-sm text-slate-500">Nothing here.</li>}
             </ul>
@@ -144,6 +157,7 @@ export default function DownloadsPage() {
           </>
         )}
       </div>
+      {importing && <ImportDialog job={importing} importPath={folder.data?.path ?? null} onClose={() => setImporting(null)} />}
     </div>
   );
 }

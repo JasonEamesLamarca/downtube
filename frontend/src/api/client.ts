@@ -78,3 +78,28 @@ export async function api<T>(path: string, opts: RequestOptions = {}): Promise<T
   if (res.status === 403 && err.code === 'acknowledgement_required') hooks.onAcknowledgementRequired();
   throw err;
 }
+
+/** Upload a file as the raw request body (XMLHttpRequest, for upload progress). */
+export function uploadFile<T>(path: string, file: Blob, opts: { query?: RequestOptions['query']; onProgress?: (pct: number) => void; signal?: AbortSignal } = {}): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', buildUrl(path, opts.query));
+    xhr.withCredentials = true;
+    xhr.setRequestHeader('Accept', 'application/json');
+    xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+    if (csrfToken) xhr.setRequestHeader('X-CSRF-Token', csrfToken);
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) opts.onProgress?.((e.loaded / e.total) * 100); };
+    xhr.onload = () => {
+      let body: unknown = null;
+      try { body = JSON.parse(xhr.responseText); } catch { /* not JSON */ }
+      if (xhr.status >= 200 && xhr.status < 300) { resolve(body as T); return; }
+      const err = (body as { error?: ErrorBody } | null)?.error ?? { code: 'http_error', message: xhr.statusText || `HTTP ${xhr.status}` };
+      if (xhr.status === 401) hooks.onUnauthorized();
+      reject(new ApiError(xhr.status, err));
+    };
+    xhr.onerror = () => reject(new ApiError(0, { code: 'network', message: 'The upload failed (network error).' }));
+    xhr.onabort = () => reject(new ApiError(0, { code: 'aborted', message: 'Upload cancelled.' }));
+    opts.signal?.addEventListener('abort', () => xhr.abort());
+    xhr.send(file);
+  });
+}

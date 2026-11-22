@@ -88,6 +88,11 @@ def parse_ffprobe(data: dict[str, Any], path: Path) -> Probe:
 
 
 def ffprobe(path: Path, binary: str = "ffprobe", timeout: float = 120.0) -> Probe:
+    return parse_ffprobe(ffprobe_json(path, binary, timeout), path)
+
+
+def ffprobe_json(path: Path, binary: str = "ffprobe", timeout: float = 120.0) -> dict[str, Any]:
+    """Raw ffprobe output (format + streams, including tags)."""
     if not path.is_file():
         raise ValidationError("output file does not exist")
     if path.stat().st_size == 0:
@@ -102,9 +107,12 @@ def ffprobe(path: Path, binary: str = "ffprobe", timeout: float = 120.0) -> Prob
     if proc.returncode != 0:
         raise ValidationError(f"ffprobe failed: {proc.stderr.strip()[-500:]}")
     try:
-        return parse_ffprobe(json.loads(proc.stdout), path)
+        data = json.loads(proc.stdout)
     except json.JSONDecodeError as e:
         raise ValidationError("ffprobe returned invalid JSON") from e
+    if not isinstance(data, dict):
+        raise ValidationError("ffprobe returned invalid JSON")
+    return data
 
 
 def check(probe: Probe, selection: Selection, expected_duration_s: float | None) -> Probe:

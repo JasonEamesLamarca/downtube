@@ -7,7 +7,7 @@ Only the latest tagged release and the `main` branch receive security fixes.
 | Version | Supported |
 |---|---|
 | `main` | Yes |
-| Latest release (0.3.x) | Yes |
+| Latest release (0.4.x) | Yes |
 | Older | No |
 
 ## Reporting a vulnerability
@@ -46,7 +46,8 @@ they control. The main controls are:
 | Data scoping | Queries are scoped to the signed-in user. Media is visible only to users who have a source for it. |
 | Paths | Writes are restricted to configured storage mounts. Paths are resolved with `realpath`; symlinks and traversal that escape a mount are rejected. Filenames are sanitized. |
 | Subprocesses | yt-dlp and ffmpeg/ffprobe run with argument lists, never through a shell. |
-| Access-control bypass | DownTube does not use cookies, geo-bypass or other options intended to defeat DRM, paywalls, geographic, age, membership or login restrictions. |
+| Access-control bypass | DownTube does not use cookies, geo-bypass or other options intended to defeat DRM, paywalls, geographic, age, membership or login restrictions. It never receives YouTube cookies: for sign-in-only videos it shows a yt-dlp command the user runs on their own computer, and imports the resulting file after validating it. |
+| Imports | Uploads stream to `<archive>/.import/.uploading` (free-space check first) and are deleted if validation fails. Only files whose duration and embedded video ID match are archived; names come from the DB, never from the uploaded file name. Thumbnails are fetched only from YouTube image hosts. |
 | Logs | The log viewer redacts secrets. Tokens and client secrets are never logged. |
 | Container | Runs as a non-root user (`PUID`/`PGID`). It does not mount the Docker socket and needs no privileged mode. |
 | Trusted proxies | `X-Real-IP`, `X-Forwarded-For` and `X-Forwarded-Proto` are honoured only from `DOWNTUBE_TRUSTED_PROXIES` (default `127.0.0.1/32`). A plain-HTTP request forwarded by a trusted proxy is redirected to the HTTPS base URL (308). |

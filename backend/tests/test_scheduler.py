@@ -27,7 +27,16 @@ def test_start_stop_reschedule_and_health_flag(sched, client):
     try:
         assert runtime_status.snapshot()["scheduler"] is True
         names = {j.id for j in scheduler._scheduler.get_jobs()}
-        assert names == {"likes_poll", "likes_full", "subscriptions", "channels", "metadata", "cleanup", "backup"}
+        assert names == {
+            "likes_poll",
+            "likes_full",
+            "subscriptions",
+            "channels",
+            "metadata",
+            "cleanup",
+            "backup",
+            "imports",
+        }
         assert scheduler._scheduler.get_job("likes_poll").trigger.interval == timedelta(minutes=15)
         # every job is scheduled; none is left paused (next_run_time None = paused)
         assert all(j.next_run_time is not None for j in scheduler._scheduler.get_jobs())

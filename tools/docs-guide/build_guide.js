@@ -16,7 +16,7 @@ const {
 
 const REPO = path.resolve(__dirname, "..", "..");
 const IMG = (p) => path.join(REPO, "docs", "images", p);
-const VERSION = "0.3.0";
+const VERSION = "0.4.0";
 const DATE = "November 2026";
 
 const FONT = "Calibri";
@@ -203,7 +203,7 @@ BUL([
 H2("What it does, in one picture");
 IMAGE("diagrams/pipeline.png", "From a like or a new upload to a validated MP4 file in the archive.");
 H2("Status");
-P(`Version ${VERSION} is in production use on a Synology NAS behind the DSM reverse proxy with a Let's Encrypt certificate. Real Google sign-in (OAuth with PKCE) and the YouTube Data API have been verified live: sign-in and allowlist refusal, subscription sync (234 channels for 10 quota units), likes baseline, archiving of hundreds of subscription videos, and resuming interrupted downloads across an upgrade. Version 0.3.0 adds deleting videos from the library, unsubscribing from channels, and description files for media servers.`);
+P(`Version ${VERSION} is in production use on a Synology NAS behind the DSM reverse proxy with a Let's Encrypt certificate. Real Google sign-in (OAuth with PKCE) and the YouTube Data API have been verified live: sign-in and allowlist refusal, subscription sync (234 channels for 10 quota units), likes baseline, archiving of hundreds of subscription videos, and resuming interrupted downloads across an upgrade. Version 0.3.0 added deleting videos from the library, unsubscribing from channels, and description files for media servers. Version 0.4.0 lets you archive age-restricted and other sign-in-only videos by downloading them yourself and importing the file.`);
 
 // ---- 2. How it works
 H1("2. How it works");
@@ -276,7 +276,11 @@ IMAGE("screenshots/unsubscribe.png", "Unsubscribing asks for confirmation; witho
 H2("Liked videos");
 IMAGE("screenshots/likes.png", "Liked videos: everything DownTube has seen in your likes, with archive status.");
 H2("Downloads");
-IMAGE("screenshots/downloads.png", "Downloads: live progress, speed and ETA; pause, cancel and retry; archive a single video by URL.");
+IMAGE("screenshots/downloads.png", "Downloads: live progress, speed and ETA; pause, cancel and retry; a link to each video on YouTube; archive a single video by URL; the import folder.");
+H3("Age-restricted and other sign-in-only videos");
+P("DownTube downloads without signing in to YouTube and never receives your YouTube cookies. Videos that YouTube only shows to a signed-in account (age-restricted, members-only) therefore fail with `age_restricted`, `login_required` or `members_only`. **Download myself** on such a job opens a dialog with a link to the video and a ready-made yt-dlp command for your own computer. The command reads your browser's sign-in locally, keeps the original streams up to the job's resolution limit, merges them to MP4 without re-encoding, embeds the metadata and puts the video ID in the file name. You need yt-dlp and ffmpeg on that computer; on Windows use Firefox, because yt-dlp usually cannot read Chrome or Edge cookies there.");
+P("Then either **upload** the file in the same dialog, or copy it into the **import folder** `<archive>/.import` (on the NAS, for example `/volume1/video/DownTube/.import`). DownTube scans that folder every 5 minutes, or straight away with **Scan now**; the file name must contain the video ID in brackets, such as `Title [dQw4w9WgXcQ].mp4`. Before archiving, DownTube checks that the file is MP4 or MKV/WebM, that it lasts as long as the YouTube video, that any embedded metadata names the same video, and that it does not exceed the resolution limit. A file that passes is moved into the channel folder with the usual name, thumbnail and `.nfo`, and the job is marked completed; a file that fails stays where it is, with the reason listed under Import folder.");
+IMAGE("screenshots/download-myself.png", "Download myself: a link to the video, the yt-dlp command for your own computer, and the upload.");
 H2("Library");
 IMAGE("screenshots/library.png", "Library: archived files with resolution, codec, size and the path inside the archive.");
 P("Files are stored as `<Channel>/YYYY-MM-DD - Title [VIDEOID].mp4`, with a thumbnail (`.jpg`) and an `.nfo` file next to each video. The `.nfo` holds the title, the full YouTube description, the date, the runtime and the channel, in the format Plex's NFO agent, Jellyfin, Emby and Kodi read. New MP4 files also carry the title, description and date as embedded tags (copied in, never re-encoded).");
