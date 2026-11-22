@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-22
+
+### Fixed
+- Scheduled jobs without a startup delay (daily database backup, nightly metadata refresh, full likes
+  reconciliation) were added paused and never ran. They now run on their schedule.
+
 ## [0.3.0] - 2026-11-22
 
 ### Added
