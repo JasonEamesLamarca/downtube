@@ -5,6 +5,16 @@ All notable changes to DownTube are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Documentation
+
+- End-to-end guide `docs/DownTube-Guide.docx`: architecture, interface tour, a step-by-step Synology
+  deployment (Google Cloud, DNS, port forwarding, certificate, reverse proxy, split DNS, first run) and
+  operations. Diagrams and screenshots (demo data) in `docs/images/`, generators in `tools/`.
+- Troubleshooting sections from production use (DSM CPU quotas, share ACLs, SSH forwarding, double NAT,
+  NAT loopback and DHCP DNS, Google Testing vs production, authorised domains, one-time client secret).
+
 ## [0.2.1] - 2026-11-21
 
 ### Fixed

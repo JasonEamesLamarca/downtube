@@ -2,13 +2,12 @@
 
 ## Supported versions
 
-DownTube is pre-release. Only the latest tagged release and the `main` branch receive
-security fixes.
+Only the latest tagged release and the `main` branch receive security fixes.
 
 | Version | Supported |
 |---|---|
 | `main` | Yes |
-| 0.1.x (unreleased) | Yes, once released |
+| Latest release (0.2.x) | Yes |
 | Older | No |
 
 ## Reporting a vulnerability
