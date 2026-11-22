@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-11-22
+
+### Changed
+- **Dependencies brought up to date** (supersedes the open Dependabot pull requests):
+  - Frontend: React 19, Tailwind CSS 4 (configuration moved into `src/index.css`; the
+    Tailwind 3 look is kept: border colour, placeholder colour, pointer cursor on buttons), msw 3
+    (tests now fail on unmocked requests again: `onUnhandledFrame: 'error'`). TypeScript stays on 6.0
+    until typescript-eslint supports 7.x (Dependabot ignores TypeScript majors until then).
+  - Backend minimums raised to the tested versions: FastAPI 0.165, SQLAlchemy 2.1.9, Alembic 1.20.1,
+    Pydantic 2.14, cryptography 50.0.2, python-multipart 0.0.34, uvicorn 0.54, setuptools 84.2.1.
+  - Image: Node 24.22.3 (Alpine 3.24) for the frontend build.
+  - GitHub Actions: checkout 7, setup-node 7, setup-python 7, upload-artifact 7, Docker build-push 7,
+    login 4, metadata 6, setup-buildx 4, setup-qemu 4.
+- **GitHub releases:** pushing a `v*` tag now also creates the GitHub release, with this version's
+  CHANGELOG section as notes.
+
+### Fixed
+- The file picker button in **Download myself** is styled like the other buttons.
+
 ## [0.4.3] - 2026-11-22
 
 ### Fixed

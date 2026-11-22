@@ -30,7 +30,7 @@ function isEstimate(x: unknown): x is ChannelEstimate {
 
 function ConfirmBody({ e, title }: { e: ChannelEstimate; title?: string }) {
   return (
-    <div className="rounded border border-slate-200 p-2 dark:border-slate-700">
+    <div className="rounded-sm border border-slate-200 p-2 dark:border-slate-700">
       {title && <p className="font-medium">{title}</p>}
       <p>{e.video_count?.toLocaleString() ?? 'Unknown number of'} videos, estimated {e.estimated_bytes != null ? formatBytes(e.estimated_bytes) : 'size unknown'}.</p>
       <p className="text-xs text-slate-500">{e.estimate_basis}</p>
@@ -226,7 +226,7 @@ export default function SubscriptionsPage() {
                   <div className="min-w-0 flex-1 basis-56">
                     <p className="flex items-center gap-2 font-medium">
                       <span className="truncate">{c.title}</span>
-                      {!c.subscribed && <span className="rounded bg-slate-200 px-1.5 text-xs font-normal text-slate-700 dark:bg-slate-700 dark:text-slate-200">Unsubscribed</span>}
+                      {!c.subscribed && <span className="rounded-sm bg-slate-200 px-1.5 text-xs font-normal text-slate-700 dark:bg-slate-700 dark:text-slate-200">Unsubscribed</span>}
                       <a href={c.url} target="_blank" rel="noreferrer" aria-label={`Open ${c.title} on YouTube`}><ExternalLink size={14} /></a>
                     </p>
                     <p className="line-clamp-2 text-xs text-slate-500">{c.description}</p>

@@ -4,7 +4,7 @@
 # Build:   docker build -t downtube .
 # Upgrade yt-dlp (YouTube breaks extractors often): docker build --build-arg YTDLP_VERSION=<ver> .
 
-ARG NODE_IMAGE=node:24.19.0-alpine3.23
+ARG NODE_IMAGE=node:24.22.3-alpine3.24
 ARG BUILDPLATFORM=linux/amd64
 ARG PYTHON_IMAGE=python:3.12.16-slim-bookworm
 ARG DENO_VERSION=2.9.8

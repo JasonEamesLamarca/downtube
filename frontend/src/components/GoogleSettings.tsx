@@ -98,7 +98,9 @@ function GoogleForm({ data }: { data: GoogleSettingsOut }) {
         {selfErr && <p role="alert" className="text-sm text-red-700 dark:text-red-400">You can't remove your own account</p>}
         {!selfErr && Object.keys(errs).length === 0 && <ErrorNote error={save.error} />}
       </div>
-      <button className="btn btn-primary" disabled={!dirty || save.isPending} onClick={() => save.mutate()}>Save Google settings</button>
+      <div className="pt-3">
+        <button className="btn btn-primary" disabled={!dirty || save.isPending} onClick={() => save.mutate()}>Save Google settings</button>
+      </div>
     </>
   );
 }

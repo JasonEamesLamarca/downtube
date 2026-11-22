@@ -116,7 +116,7 @@ export default function LibraryPage() {
       )}
       {sel && (
         <Drawer title={sel.title ?? sel.video_id} onClose={() => setSel(null)}>
-          <video key={sel.video_id} controls preload="metadata" className="w-full rounded bg-black" src={`/api/library/${sel.video_id}/stream`} />
+          <video key={sel.video_id} controls preload="metadata" className="w-full rounded-sm bg-black" src={`/api/library/${sel.video_id}/stream`} />
           <p className="mt-2 text-xs text-slate-500">Some codecs (for example AV1, VP9 in MP4, or HEVC) or MKV files may not play in every browser. The file itself is unchanged; use a media player or Plex if playback fails.</p>
           <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
             <div><dt className="text-slate-500">Channel</dt><dd>{sel.channel_title ?? '—'}</dd></div>

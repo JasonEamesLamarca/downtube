@@ -69,7 +69,7 @@ export function ProgressBar({ pct, label }: { pct: number | null | undefined; la
   const v = Math.max(0, Math.min(100, pct ?? 0));
   return (
     <div role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(v)}
-      className="h-2 w-full overflow-hidden rounded bg-slate-200 dark:bg-slate-700">
+      className="h-2 w-full overflow-hidden rounded-sm bg-slate-200 dark:bg-slate-700">
       <div className="h-full bg-brand-500 transition-all" style={{ width: `${v}%` }} />
     </div>
   );
@@ -109,7 +109,7 @@ export function Pagination({ page, pageSize, total, onPage }: {
 export function ErrorNote({ error }: { error: unknown }) {
   if (!error) return null;
   const msg = error instanceof Error ? error.message : String(error);
-  return <p role="alert" className="rounded border border-red-300 bg-red-50 p-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">{msg}</p>;
+  return <p role="alert" className="rounded-sm border border-red-300 bg-red-50 p-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">{msg}</p>;
 }
 
 export function Spinner({ label = 'Loading…' }: { label?: string }) {
@@ -117,9 +117,11 @@ export function Spinner({ label = 'Loading…' }: { label?: string }) {
 }
 
 export function Thumb({ src, alt = '', className = 'h-12 w-20' }: { src: string | null | undefined; alt?: string; className?: string }) {
+  // Only add the default corner radius when the caller sets none (e.g. round channel avatars).
+  const radius = /\brounded-/.test(className) ? '' : 'rounded-sm';
   return src
-    ? <img src={src} alt={alt} loading="lazy" className={`${className} shrink-0 rounded bg-slate-200 object-cover dark:bg-slate-800`} />
-    : <div aria-hidden className={`${className} shrink-0 rounded bg-slate-200 dark:bg-slate-800`} />;
+    ? <img src={src} alt={alt} loading="lazy" className={`${className} ${radius} shrink-0 bg-slate-200 object-cover dark:bg-slate-800`} />
+    : <div aria-hidden className={`${className} ${radius} shrink-0 bg-slate-200 dark:bg-slate-800`} />;
 }
 
 export function useDebounced<T>(value: T, ms = 300): T {

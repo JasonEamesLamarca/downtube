@@ -99,7 +99,7 @@ export function AdminPicker({ allowed, admins, onChange }: { allowed: string[]; 
 
 export function GoogleInstructions({ redirectUri }: { redirectUri: string }) {
   return (
-    <details className="rounded border border-slate-300 p-2 text-sm dark:border-slate-700">
+    <details className="rounded-sm border border-slate-300 p-2 text-sm dark:border-slate-700">
       <summary className="cursor-pointer font-medium">How to create a Google sign-in client</summary>
       <ol className="mt-2 list-decimal space-y-1 pl-5">
         <li>Create a project in the Google Cloud Console.</li>
