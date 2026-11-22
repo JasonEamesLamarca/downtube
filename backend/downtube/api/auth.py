@@ -32,9 +32,9 @@ def _login_error(code: str) -> RedirectResponse:
 
 
 @router.get("/login", dependencies=[Depends(rate_limit_auth)], include_in_schema=True)
-def login() -> RedirectResponse:
+def login(manage: bool = Query(False)) -> RedirectResponse:
     try:
-        url, state = oauth.build_login_url()
+        url, state = oauth.build_login_url(manage=manage)
         resp = RedirectResponse(url, status_code=302)
         # Bind the login attempt to this browser (login-CSRF protection).
         resp.set_cookie(
@@ -90,6 +90,7 @@ def _me(db: Session, u: User, csrf_token: str) -> Me:
         acknowledged_terms=u.acknowledged_terms_at is not None,
         account_status=acc.status.value if acc else "disconnected",  # type: ignore[arg-type]
         youtube_channel_id=acc.youtube_channel_id if acc else None,
+        can_manage_youtube=bool(acc and oauth.has_manage_scope(acc.scopes)),
         csrf_token=csrf_token,
     )
 

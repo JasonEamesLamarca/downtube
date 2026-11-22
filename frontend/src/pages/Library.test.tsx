@@ -1,0 +1,66 @@
+import { http, HttpResponse } from 'msw';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it } from 'vitest';
+import type { MediaFileOut } from '../api/types';
+import { server } from '../test/server';
+import { ME, renderPage } from '../test/utils';
+import LibraryPage from './Library';
+
+const item = (over: Partial<MediaFileOut> = {}): MediaFileOut => ({
+  id: 1, video_id: 'dQw4w9WgXcQ', title: 'Liked Video', channel_id: 'UC1', channel_title: 'Chan', thumbnail_url: null,
+  url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', rel_path: 'Chan/x.mp4', container: 'mp4', width: 1920, height: 1080,
+  fps: 30, vcodec: 'avc1', acodec: 'mp4a', duration_s: 60, size_bytes: 1000, is_hdr: false, source_format_id: '137+140',
+  max_height_requested: 2160, created_at: '2026-01-01T00:00:00Z', sources: ['like'], ...over,
+});
+
+const library = (items: MediaFileOut[]) => () => HttpResponse.json({ items, total: items.length, page: 1, page_size: 24 });
+
+describe('LibraryPage delete', () => {
+  it('deletes a liked video and removes the like when permitted', async () => {
+    const bodies: unknown[] = [];
+    server.use(
+      http.get('/api/library', library([item()])),
+      http.post('/api/library/dQw4w9WgXcQ/delete', async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json({ video_id: 'dQw4w9WgXcQ', deleted_files: ['Chan/x.mp4', 'Chan/x.nfo'], like_removed: true, excluded: true, warnings: [] });
+      }),
+    );
+    const user = userEvent.setup();
+    renderPage(<LibraryPage />, { ...ME, can_manage_youtube: true });
+    await user.click(await screen.findByRole('button', { name: 'Delete Liked Video' }));
+    const box = screen.getByRole('checkbox', { name: /remove the like/i });
+    expect(box).toBeChecked();
+    await user.click(screen.getByRole('button', { name: 'Delete video' }));
+    await waitFor(() => expect(bodies).toEqual([{ remove_like: true }]));
+    expect(await screen.findByRole('status')).toHaveTextContent('Deleted 2 files and removed the like on YouTube');
+  });
+
+  it('keeps the like and offers the permission when it is missing', async () => {
+    const bodies: unknown[] = [];
+    server.use(
+      http.get('/api/library', library([item()])),
+      http.post('/api/library/dQw4w9WgXcQ/delete', async ({ request }) => {
+        bodies.push(await request.json());
+        return HttpResponse.json({ video_id: 'dQw4w9WgXcQ', deleted_files: ['Chan/x.mp4'], like_removed: false, excluded: true, warnings: ['the video is still liked on YouTube'] });
+      }),
+    );
+    const user = userEvent.setup();
+    renderPage(<LibraryPage />);
+    await user.click(await screen.findByRole('button', { name: 'Delete Liked Video' }));
+    expect(screen.getByRole('checkbox', { name: /remove the like/i })).toBeDisabled();
+    expect(screen.getByRole('link', { name: /grant permission/i })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Delete video' }));
+    await waitFor(() => expect(bodies).toEqual([{ remove_like: false }]));
+  });
+
+  it('explains that channel videos will not be downloaded again', async () => {
+    server.use(http.get('/api/library', library([item({ title: 'Channel Video', sources: ['subscription'] })])));
+    const user = userEvent.setup();
+    renderPage(<LibraryPage />);
+    await user.click(await screen.findByRole('button', { name: 'Delete Channel Video' }));
+    const dialog = screen.getByRole('dialog', { name: /delete from library/i });
+    expect(dialog).toHaveTextContent('even though its channel is archived');
+    expect(screen.queryByRole('checkbox', { name: /remove the like/i })).not.toBeInTheDocument();
+  });
+});

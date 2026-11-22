@@ -28,6 +28,8 @@ DownTube uses only this API for discovery. It does not use the search API.
    - `https://www.googleapis.com/auth/userinfo.email`
    - `https://www.googleapis.com/auth/userinfo.profile`
    - `https://www.googleapis.com/auth/youtube.readonly`
+   - `https://www.googleapis.com/auth/youtube.force-ssl` (optional: only requested when a user grants
+     DownTube permission to unsubscribe and remove likes; declaring it avoids an extra warning)
 5. **Test users**: add your own Google account.
 6. **Branding** (new Google Auth Platform): set an app home page and a privacy policy link, for
    example this repository's `PRIVACY.md` on GitHub. The domain of every link must be listed under

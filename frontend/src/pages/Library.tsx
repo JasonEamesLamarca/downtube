@@ -1,10 +1,46 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { ExternalLink, LayoutGrid, List } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ExternalLink, LayoutGrid, List, Trash2 } from 'lucide-react';
 import { endpoints } from '../api/endpoints';
-import type { MediaFileOut } from '../api/types';
-import { Drawer, ErrorNote, PageHeader, Pagination, Spinner, Thumb, useDebounced } from '../components/ui';
+import type { DeleteVideoResult, MediaFileOut } from '../api/types';
+import { useMe } from '../auth';
+import { ManagePermissionNote } from '../components/ManagePermission';
+import { Drawer, ErrorNote, Modal, PageHeader, Pagination, Spinner, Thumb, useDebounced } from '../components/ui';
 import { formatBytes, formatDate, formatDuration, heightLabel } from '../lib/format';
+
+export function DeleteVideoDialog({ item, onClose, onDone }: {
+  item: MediaFileOut; onClose: () => void; onDone: (r: DeleteVideoResult) => void;
+}) {
+  const me = useMe();
+  const liked = item.sources.includes('like');
+  const fromChannel = item.sources.includes('subscription');
+  const [removeLike, setRemoveLike] = useState(liked && me.can_manage_youtube);
+  const del = useMutation({
+    mutationFn: () => endpoints.deleteVideo(item.video_id, { remove_like: liked && removeLike }),
+    onSuccess: onDone,
+  });
+  return (
+    <Modal title="Delete from library?" onClose={onClose}
+      footer={<>
+        <button className="btn" onClick={onClose}>Cancel</button>
+        <button className="btn btn-danger" disabled={del.isPending} onClick={() => del.mutate()}>Delete video</button>
+      </>}>
+      <p><strong>{item.title ?? item.video_id}</strong> will be deleted from disk, together with its thumbnail, description file and any kept older copy. This cannot be undone.</p>
+      <p>DownTube will not download it again{fromChannel ? ', even though its channel is archived' : ''}. You can still download it again later from the Downloads page.</p>
+      {liked && (
+        <>
+          <label className="flex items-start gap-2">
+            <input type="checkbox" className="mt-1" checked={removeLike} disabled={!me.can_manage_youtube}
+              onChange={(e) => setRemoveLike(e.target.checked)} />
+            <span>Also remove the like on YouTube</span>
+          </label>
+          {!me.can_manage_youtube && <ManagePermissionNote action="remove the like on YouTube" />}
+        </>
+      )}
+      <ErrorNote error={del.error} />
+    </Modal>
+  );
+}
 
 export default function LibraryPage() {
   const [search, setSearch] = useState('');
@@ -14,6 +50,9 @@ export default function LibraryPage() {
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [page, setPage] = useState(1);
   const [sel, setSel] = useState<MediaFileOut | null>(null);
+  const [toDelete, setToDelete] = useState<MediaFileOut | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const qc = useQueryClient();
   const q = useDebounced(search);
   const list = useQuery({
     queryKey: ['library', q, channel, sort, order, page],
@@ -49,6 +88,7 @@ export default function LibraryPage() {
           <option value="desc">Descending</option><option value="asc">Ascending</option>
         </select>
       </div>
+      {notice && <p role="status" className="mb-2 text-sm text-green-700 dark:text-green-400">{notice}</p>}
       {list.isLoading && <Spinner />}
       <ErrorNote error={list.error} />
       {list.data && (
@@ -65,7 +105,10 @@ export default function LibraryPage() {
                   <p className="text-xs text-slate-500">{heightLabel(m.height)}{m.is_hdr ? ' HDR' : ''} · {m.vcodec ?? '?'} · {m.container} · {formatBytes(m.size_bytes)} · {formatDate(m.created_at)}</p>
                   <p className="truncate text-xs text-slate-400" title={m.rel_path}>{m.rel_path}</p>
                 </div>
-                <a className="btn px-2" href={m.url} target="_blank" rel="noreferrer" aria-label={`Open ${m.title ?? m.video_id} on YouTube`}><ExternalLink size={14} /></a>
+                <div className="mt-2 flex gap-1">
+                  <a className="btn px-2" href={m.url} target="_blank" rel="noreferrer" aria-label={`Open ${m.title ?? m.video_id} on YouTube`}><ExternalLink size={14} /></a>
+                  <button className="btn px-2" onClick={() => setToDelete(m)} aria-label={`Delete ${m.title ?? m.video_id}`}><Trash2 size={14} /></button>
+                </div>
               </li>
             ))}
             {list.data.items.length === 0 && <li className="p-4 text-sm text-slate-500">Nothing archived yet.</li>}
@@ -86,8 +129,22 @@ export default function LibraryPage() {
             <div><dt className="text-slate-500">Size</dt><dd>{formatBytes(sel.size_bytes)}</dd></div>
             <div className="col-span-2"><dt className="text-slate-500">Path</dt><dd className="break-all">{sel.rel_path}</dd></div>
           </dl>
-          <a className="btn mt-3" href={sel.url} target="_blank" rel="noreferrer">Open on YouTube</a>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a className="btn" href={sel.url} target="_blank" rel="noreferrer">Open on YouTube</a>
+            <button className="btn btn-danger" onClick={() => setToDelete(sel)}><Trash2 size={14} aria-hidden /> Delete…</button>
+          </div>
         </Drawer>
+      )}
+      {toDelete && (
+        <DeleteVideoDialog item={toDelete} onClose={() => setToDelete(null)} onDone={(r) => {
+          setToDelete(null);
+          setSel(null);
+          const parts = [`Deleted ${r.deleted_files.length} file${r.deleted_files.length === 1 ? '' : 's'}`];
+          if (r.like_removed) parts.push('removed the like on YouTube');
+          setNotice(`${parts.join(' and ')}. ${r.warnings.join(' ')}`.trim());
+          qc.invalidateQueries({ queryKey: ['library'] });
+          qc.invalidateQueries({ queryKey: ['dashboard'] });
+        }} />
       )}
     </div>
   );

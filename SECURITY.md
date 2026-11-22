@@ -7,7 +7,7 @@ Only the latest tagged release and the `main` branch receive security fixes.
 | Version | Supported |
 |---|---|
 | `main` | Yes |
-| Latest release (0.2.x) | Yes |
+| Latest release (0.3.x) | Yes |
 | Older | No |
 
 ## Reporting a vulnerability

@@ -174,7 +174,7 @@ def refresh_stale_metadata(max_age_days=25)               # API data retention: 
   <Channel Folder>/                   Channel.folder_name (stable once assigned)
     2026-10-15 - Video Title [VIDEOID].mp4
     2026-10-15 - Video Title [VIDEOID].jpg       (optional thumbnail, Plex local asset)
-    2026-10-15 - Video Title [VIDEOID].nfo       (optional metadata)
+    2026-10-15 - Video Title [VIDEOID].nfo       (title + YouTube description; Kodi movie format, default on)
 /temp/jobs/<job_id>/                  partial downloads (separate from archive)
 ```
 Finalization: copy/move from temp to `<final>.downtube-partial` in the target directory,
@@ -208,7 +208,7 @@ Finalization: copy/move from temp to `<final>.downtube-partial` in the target di
 | Method & path | Body → Response |
 |---|---|
 | GET `/health` (no auth) | → `Health` |
-| GET `/auth/login` (no auth) | 302 to Google (state+PKCE+nonce) |
+| GET `/auth/login?manage=` (no auth) | 302 to Google (state+PKCE+nonce); `manage=true` also asks for `youtube.force-ssl` |
 | GET `/auth/callback` (no auth) | 302 to `/` (or `/login?error=...`) |
 | POST `/auth/logout` | → 204 |
 | GET `/auth/me` | → `Me` (401 if no session) |
@@ -221,6 +221,7 @@ Finalization: copy/move from temp to `<final>.downtube-partial` in the target di
 | PATCH `/subscriptions/{channel_id}/rule` | `ChannelRulePatch` → `SubscriptionOut` (409 `confirmation_required` + `ChannelEstimate` in message details when large) |
 | POST `/subscriptions/bulk` | `BulkRuleRequest` → `BulkResult` |
 | POST `/subscriptions/{channel_id}/sync` | → `SyncRunOut` (202) |
+| POST `/subscriptions/{channel_id}/unsubscribe` | → `SubscriptionOut`. Unsubscribes on YouTube (1 + 50 quota units), sets the rule to off, cancels queued jobs; archives kept. 403 `manage_permission_required`, 409 `not_subscribed` |
 | GET `/likes?q=&state=&page=&page_size=` | → `Page[VideoOut]` |
 | POST `/likes/sync` | `LikesSyncRequest` → `SyncRunOut` (202) |
 | POST `/likes/backfill` | `LikesBackfillRequest` → `{"queued": int}` |
@@ -231,6 +232,8 @@ Finalization: copy/move from temp to `<final>.downtube-partial` in the target di
 | GET `/library?q=&channel_id=&sort=date|title|size|height&order=&page=&page_size=` | → `Page[MediaFileOut]` |
 | GET `/library/{video_id}/stream` | video bytes (HTTP Range), only the DB-recorded file |
 | GET `/library/{video_id}/thumbnail` | jpeg if local thumbnail exists |
+| POST `/library/{video_id}/delete` | `DeleteVideoRequest` → `DeleteVideoResult`. Deletes the file, sidecars and kept superseded copies; adds a `video_exclusions` row (no sync re-queues it; `POST /downloads` lifts it); optionally `videos.rate=none` (50 units) first. 403 `manage_permission_required`, 409 `job_running` / `shared_video` |
+| POST `/library/sidecars?overwrite=` | → `SidecarResult`: writes missing `.nfo` files for the user's archive |
 | GET `/settings` / PUT `/settings` | → `SettingsOut` / `SettingsUpdate` → `SettingsOut` |
 | GET `/storage` | → `StorageInfo` |
 | GET `/storage/browse?path=` | → `BrowseResult` |
@@ -283,6 +286,11 @@ secret Fernet-encrypted). While Google sign-in or the allowlist is not configure
 Authorization Code + PKCE (S256) + `state` (hash stored, single use, 10 min TTL) + OIDC `nonce`.
 `access_type=offline`, `prompt=consent` on first connect, `include_granted_scopes=true`.
 Scopes: `openid email profile https://www.googleapis.com/auth/youtube.readonly`.
+Optional (incremental authorization, `GET /api/auth/login?manage=true`, `prompt=consent`):
+`https://www.googleapis.com/auth/youtube.force-ssl`, used only by user-confirmed actions
+(`POST /subscriptions/{id}/unsubscribe`, `POST /library/{video_id}/delete` with `remove_like`).
+`Me.can_manage_youtube` reports whether it was granted; without it those calls return 403
+`manage_permission_required` before changing anything.
 ID token received directly from Google's token endpoint over TLS: validate `iss`, `aud`, `exp`,
 `nonce`, `email_verified`; email must be in the allowlist. Refresh on expiry; `invalid_grant` →
 account `reauth_required`, syncs paused, UI banner prompting reconnect.

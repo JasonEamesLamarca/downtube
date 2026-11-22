@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-22
+
+### Added
+
+- **Delete from the library.** Library → Delete removes the video file, its thumbnail, its `.nfo` and
+  any kept superseded copy. The video is then excluded: no like or channel sync downloads it again for
+  that user (a manual download from the Downloads page lifts the exclusion). For a liked video the like
+  can also be removed on YouTube. Refused while a download of the video is running, or when another
+  DownTube user also archives it.
+- **Unsubscribe.** Subscriptions → Unsubscribe unsubscribes on YouTube, turns the channel's archive rule
+  off and cancels its queued downloads. Archived videos stay.
+- **Optional permission to manage the YouTube account** (`youtube.force-ssl`), requested only from
+  Settings → Account & connection or from the dialogs above (incremental authorization). Without it
+  DownTube stays read-only; the actions return `manage_permission_required` before changing anything.
+- **Descriptions for media servers.** `.nfo` files (title, full YouTube description, date, year, runtime,
+  channel, YouTube id) are now written by default, and new MP4 files carry title, description, date and
+  channel tags (`--embed-metadata`, stream copy, no chapter track). Settings → *Write .nfo files for
+  videos already archived* backfills existing videos.
+- Write calls are counted with their real quota cost (50 units for `videos.rate` and
+  `subscriptions.delete`).
+
+### Changed
+
+- Settings defaults: `write_nfo` is now on; new setting `embed_metadata` (on).
+- Token refreshes record the scopes Google reports, so a permission withdrawn in the Google account is
+  noticed.
+- Database migration `0002`: table `video_exclusions`.
+
 ### Documentation
 
 - End-to-end guide `docs/DownTube-Guide.docx`: architecture, interface tour, a step-by-step Synology

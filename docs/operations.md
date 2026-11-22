@@ -22,6 +22,22 @@ docker compose up -d
 yt-dlp breaks whenever YouTube changes its site. Update the image regularly, even when DownTube
 itself has no new release.
 
+### Upgrading to 0.3.0
+
+1. Optional, in Google Cloud: **Google Auth Platform → Data access → Add or remove scopes**, add
+   `https://www.googleapis.com/auth/youtube.force-ssl` and save. Unsubscribing and removing likes need
+   this permission. Without it the rest of DownTube works as before.
+2. Upgrade as above. Migration `0002` adds the `video_exclusions` table.
+3. In DownTube, **Settings → Account & connection → Grant permission with Google** if you want to
+   unsubscribe and remove likes from the app. Google shows the "unverified app" warning again; that
+   is expected for a personal client.
+4. **Settings → Media server files → Write .nfo files for videos already archived** adds description
+   files to everything downloaded before 0.3.0. Files downloaded from now on get an `.nfo` and embedded
+   MP4 tags automatically. Existing MP4 files are not rewritten.
+5. Plex: the `.nfo` files are read by the Plex NFO agent, which works only in **Movie** and **TV**
+   libraries (Plex Media Server 1.43.1 or later). In an **Other Videos** library, Plex uses the tags
+   embedded in the MP4 instead. Jellyfin, Emby and Kodi read the `.nfo` files directly.
+
 ## Backup and restore
 
 DownTube makes a consistent online copy of its SQLite database every day (SQLite backup API)

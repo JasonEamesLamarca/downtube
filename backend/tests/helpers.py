@@ -149,6 +149,9 @@ class FakeYouTube:
         self.fail: list[httpx.Response] = []  # consumed first, one per request
         self.fail_when = None  # optional callable(path, params) -> Response | None
         self.calls: list[tuple[str, dict]] = []
+        self.ratings: dict[str, str] = {}  # videos.rate calls: video id -> rating
+        self.subscription_ids: dict[str, str] = {}  # channel id -> subscription resource id
+        self.deleted_subscriptions: list[str] = []
         router.route(host="www.googleapis.com").mock(side_effect=self._handle)
 
     # -- builders
@@ -196,6 +199,15 @@ class FakeYouTube:
         if self.fail_when is not None and (resp := self.fail_when(path, q)) is not None:
             return resp
         tok = q.get("pageToken")
+        if path == "rate" and request.method == "POST":
+            self.ratings[q["id"]] = q["rating"]
+            return httpx.Response(204)
+        if path == "subscriptions" and request.method == "DELETE":
+            self.deleted_subscriptions.append(q["id"])
+            return httpx.Response(204)
+        if path == "subscriptions" and "forChannelId" in q:
+            sid = self.subscription_ids.get(q["forChannelId"])
+            return httpx.Response(200, json={"items": [{"id": sid}] if sid else []})
 
         def paged(pages: list, render):  # type: ignore[no-untyped-def]
             idx = int(tok[1:]) if tok else 0

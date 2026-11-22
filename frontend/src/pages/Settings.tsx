@@ -7,6 +7,7 @@ import { ErrorNote, Modal, PageHeader, ProgressBar, ResolutionNote, ResolutionSe
 import { formatBytes } from '../lib/format';
 import { fieldErrors } from '../lib/errors';
 import { GoogleSection } from '../components/GoogleSettings';
+import { MANAGE_LOGIN_URL } from '../components/ManagePermission';
 
 export function diffSettings(orig: SettingsOut, cur: SettingsOut): SettingsUpdate {
   const out: Record<string, unknown> = {};
@@ -126,6 +127,18 @@ function LogsViewer() {
   );
 }
 
+function SidecarBackfill() {
+  const m = useMutation({ mutationFn: () => endpoints.writeSidecars(false) });
+  return (
+    <div className="text-sm">
+      <button className="btn" disabled={m.isPending} onClick={() => m.mutate()}>Write .nfo files for videos already archived</button>
+      {m.isPending && <Spinner label="Writing description files…" />}
+      {m.data && <p role="status" className="mt-1">Wrote {m.data.written} file(s); {m.data.skipped} already had one{m.data.failed ? `; ${m.data.failed} failed (see logs)` : ''}.</p>}
+      <ErrorNote error={m.error} />
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const me = useMe();
   const qc = useQueryClient();
@@ -181,6 +194,17 @@ export default function SettingsPage() {
             {me.account_status !== 'active' && <a className="btn btn-primary" href="/api/auth/login">Connect Google account</a>}
             <button className="btn" onClick={async () => { await endpoints.logout(); qc.setQueryData(ME_KEY, null); }}>Sign out</button>
             <button className="btn btn-danger" onClick={() => setDisc(true)}>Disconnect Google account…</button>
+          </div>
+          <div className="text-sm">
+            <p className="font-medium">Permission to manage your YouTube account</p>
+            {me.can_manage_youtube ? (
+              <p>Granted. DownTube uses it only when you unsubscribe from a channel or remove a like while deleting a video. You can withdraw it in your Google account under Security → Third-party connections.</p>
+            ) : (
+              <>
+                <p>Not granted. DownTube only reads your account. Grant it to unsubscribe from channels and remove likes from DownTube.</p>
+                <a className="btn mt-1" href={MANAGE_LOGIN_URL}>Grant permission with Google</a>
+              </>
+            )}
           </div>
         </Section>
 
@@ -250,9 +274,11 @@ export default function SettingsPage() {
           {num('large_channel_threshold', 'Large channel threshold (videos)', { min: 1, hint: 'Backfilling channels above this requires confirmation.' })}
         </Section>
 
-        <Section title="Plex sidecars">
+        <Section title="Media server files (Plex, Jellyfin, Kodi)">
           {check('write_thumbnails', 'Write thumbnail (.jpg) next to each video')}
-          {check('write_nfo', 'Write metadata (.nfo) next to each video')}
+          {check('write_nfo', 'Write the title and YouTube description (.nfo) next to each video', 'Read by Plex (Movie libraries with the Plex NFO agent), Jellyfin, Emby and Kodi.')}
+          {check('embed_metadata', 'Store the title, description and date inside new MP4 files', 'Plex reads these tags in any library type. The video and audio are copied, never re-encoded.')}
+          <SidecarBackfill />
         </Section>
 
         <Section title="API quota">

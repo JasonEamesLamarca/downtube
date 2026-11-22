@@ -297,6 +297,21 @@ class VideoSource(Base):
     video: Mapped[Video] = relationship(back_populates="sources")
 
 
+class VideoExclusion(Base):
+    """A video the user deleted from the library: never queued again for that user.
+
+    Channel syncs rewrite ``VideoSource.archive_eligible`` on every pass, so the user's decision
+    is stored separately. A manual download request removes the exclusion.
+    """
+
+    __tablename__ = "video_exclusions"
+
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    video_id: Mapped[str] = mapped_column(ForeignKey("videos.id"), primary_key=True)
+    reason: Mapped[str] = mapped_column(String(32), default="deleted")
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+
 class MediaFile(Base):
     """A validated archived file. Paths are relative to the archive root in ``root_path``."""
 

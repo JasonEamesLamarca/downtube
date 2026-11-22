@@ -49,7 +49,9 @@ class FakeAdapter:
         }
         return info
 
-    def download(self, video_id, selection, out_dir, *, rate_limit_kbps, write_thumbnail, on_progress, cancel_event):
+    def download(
+        self, video_id, selection, out_dir, *, rate_limit_kbps, write_thumbnail, on_progress, cancel_event, **_kw
+    ):
         if self.error:
             raise self.error
         out_dir.mkdir(parents=True, exist_ok=True)

@@ -19,7 +19,7 @@ export const settings: SettingsOut = {
   archive_root: '/archive', likes_mode: 'future_only', likes_poll_minutes: 15, likes_full_reconcile_hours: 24, likes_max_height: null,
   subscriptions_refresh_hours: 24, channel_poll_minutes: 60, default_max_height: null, audio_preference: 'aac', prefer_hdr: false,
   compatibility_profile: false, mkv_fallback: true, max_concurrent_downloads: 2, bandwidth_limit_kbps: null, download_window: null,
-  min_free_gb: 20, large_channel_threshold: 200, write_thumbnails: true, write_nfo: false, keep_superseded_copies: true,
+  min_free_gb: 20, large_channel_threshold: 200, write_thumbnails: true, write_nfo: true, embed_metadata: true, keep_superseded_copies: true,
   quota_daily_budget: 8000, timezone: 'UTC',
 };
 

@@ -10,7 +10,7 @@ import threading
 from collections.abc import Callable
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
 
 from downtube.models import (
@@ -24,6 +24,7 @@ from downtube.models import (
     JobStatus,
     MediaFile,
     Video,
+    VideoExclusion,
     VideoSource,
 )
 from downtube.settings_service import get_value
@@ -91,7 +92,13 @@ def compute_effective_cap(s: Session, video_id: str, extra: int | None = None) -
     rows = s.execute(
         select(VideoSource, ChannelRule)
         .outerjoin(ChannelRule, ChannelRule.id == VideoSource.channel_rule_id)
-        .where(VideoSource.video_id == video_id, VideoSource.active.is_(True), VideoSource.archive_eligible.is_(True))
+        .where(
+            VideoSource.video_id == video_id,
+            VideoSource.active.is_(True),
+            VideoSource.archive_eligible.is_(True),
+            # a user who deleted the video from the library no longer wants it
+            ~exists().where(VideoExclusion.user_id == VideoSource.user_id, VideoExclusion.video_id == video_id),
+        )
     ).all()
     for src, rule in rows:
         if src.source == DiscoverySource.like:

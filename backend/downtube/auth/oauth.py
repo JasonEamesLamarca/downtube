@@ -28,6 +28,10 @@ log = logging.getLogger("downtube.auth")
 
 SCOPES = "openid email profile https://www.googleapis.com/auth/youtube.readonly"
 YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube.readonly"
+# Optional, requested only when the user asks for it (unsubscribe, remove a like).
+MANAGE_SCOPE = "https://www.googleapis.com/auth/youtube.force-ssl"
+_FULL_YOUTUBE_SCOPE = "https://www.googleapis.com/auth/youtube"
+_READ_SCOPES = {YOUTUBE_SCOPE, MANAGE_SCOPE, _FULL_YOUTUBE_SCOPE}
 STATE_TTL = timedelta(minutes=10)
 VALID_ISSUERS = {"accounts.google.com", "https://accounts.google.com"}
 
@@ -45,6 +49,12 @@ def _pkce_challenge(verifier: str) -> str:
     return base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
 
 
+def has_manage_scope(scopes: str | None) -> bool:
+    """True when the granted scopes allow changing the user's YouTube account."""
+    granted = set((scopes or "").split())
+    return MANAGE_SCOPE in granted or _FULL_YOUTUBE_SCOPE in granted
+
+
 def has_refresh_token() -> bool:
     with read_session() as s:
         return (
@@ -52,8 +62,12 @@ def has_refresh_token() -> bool:
         )
 
 
-def build_login_url() -> tuple[str, str]:
-    """Return (authorization URL, state). The caller binds the state to the browser via a cookie."""
+def build_login_url(*, manage: bool = False) -> tuple[str, str]:
+    """Return (authorization URL, state). The caller binds the state to the browser via a cookie.
+
+    ``manage`` additionally asks for permission to manage the YouTube account (incremental
+    authorization: previously granted scopes are kept).
+    """
     cfg = get_config()
     creds = app_config.google_creds()
     if creds is None:
@@ -78,7 +92,7 @@ def build_login_url() -> tuple[str, str]:
         "client_id": creds.client_id,
         "redirect_uri": cfg.redirect_uri,
         "response_type": "code",
-        "scope": SCOPES,
+        "scope": f"{SCOPES} {MANAGE_SCOPE}" if manage else SCOPES,
         "state": state,
         "nonce": nonce,
         "code_challenge": _pkce_challenge(verifier),
@@ -86,8 +100,8 @@ def build_login_url() -> tuple[str, str]:
         "access_type": "offline",
         "include_granted_scopes": "true",
     }
-    if first_connect:
-        params["prompt"] = "consent"  # guarantees a refresh token the first time
+    if first_connect or manage:
+        params["prompt"] = "consent"  # guarantees a refresh token carrying the new grant
     return f"{cfg.google_auth_url}?{urlencode(params)}", state
 
 
@@ -187,7 +201,7 @@ def complete_login(code: str, state: str, ip: str | None = None, http: httpx.Cli
             audit(s, "login.denied", None, {"email": email}, ip)
         raise OAuthError("email_not_allowed", "this Google account is not allowed to use this instance", 403)
     scopes = body.get("scope", "")
-    if YOUTUBE_SCOPE not in scopes.split():
+    if not _READ_SCOPES & set(scopes.split()):
         raise OAuthError("missing_scope", "the YouTube read-only permission was not granted", 400)
     now = datetime.now(UTC)
     sub = str(claims["sub"])

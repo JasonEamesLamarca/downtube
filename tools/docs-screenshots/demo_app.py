@@ -18,3 +18,7 @@ from downtube.api import settings as _s  # noqa: E402
 
 _s.storage_info = storage_info
 _d.storage_info = storage_info
+
+from downtube.main import create_app  # noqa: E402  (uvicorn entry point: demo_app:create_app)
+
+__all__ = ["create_app"]

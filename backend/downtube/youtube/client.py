@@ -1,8 +1,8 @@
 """YouTube Data API v3 client (httpx).
 
 * Authorization comes from the token manager; a 401 triggers exactly one forced refresh.
-* Every HTTP response is counted as 1 quota unit (list calls cost 1; invalid requests cost >= 1)
-  into ``quota_usage`` keyed by the America/Los_Angeles date.
+* Every HTTP response is counted into ``quota_usage`` keyed by the America/Los_Angeles date:
+  list calls cost 1 unit; write calls (videos.rate, subscriptions.delete) cost 50.
 * ``QuotaExceeded`` is raised when Google answers 403 quotaExceeded/dailyLimitExceeded or when the
   locally tracked budget is reached.
 * 5xx / 429 / per-minute rate limits / network errors are retried with exponential backoff + jitter.
@@ -93,11 +93,11 @@ class YouTubeClient:
 
     # ------------------------------------------------------------------ core
 
-    def _check_budget(self) -> None:
+    def _check_budget(self, cost: int = 1) -> None:
         used, exhausted = quota.usage_today()
         if exhausted:
             raise QuotaExceeded("daily YouTube API quota exhausted")
-        if used + 1 > quota.budget() * self.budget_fraction:
+        if used + cost > quota.budget() * self.budget_fraction:
             if self.budget_fraction >= 1.0:
                 quota.mark_exhausted()
             raise QuotaExceeded("daily quota budget reached")
@@ -106,10 +106,13 @@ class YouTubeClient:
         self._sleep(min(30.0, 2.0**attempt) * random.uniform(0.5, 1.5))  # noqa: S311 - jitter only
 
     def _get(self, path: str, params: dict) -> dict:
+        return self._request("GET", path, params)
+
+    def _request(self, method: str, path: str, params: dict, cost: int = 1) -> dict:
         url = f"{get_config().youtube_api_base}/{path}"
         refreshed = False
         for attempt in range(1, self.max_tries + 1):
-            self._check_budget()
+            self._check_budget(cost)
             try:
                 token = get_access_token(self.account_id, force_refresh=False)
             except TokenRefreshError:
@@ -118,17 +121,19 @@ class YouTubeClient:
                 self._backoff(attempt)
                 continue
             try:
-                resp = self._http.get(url, params=params, headers={"Authorization": f"Bearer {token}"})
+                resp = self._http.request(method, url, params=params, headers={"Authorization": f"Bearer {token}"})
             except httpx.TransportError:
                 if attempt >= self.max_tries:
                     raise
                 self._backoff(attempt)
                 continue
-            quota.record(1)
-            self.units_used += 1
+            quota.record(cost)
+            self.units_used += cost
             code = resp.status_code
+            if code == 204:
+                return {}
             if code == 200:
-                return resp.json()
+                return resp.json() if resp.content else {}
             reason, message = _error_reason(resp)
             if code == 401:
                 if refreshed:
@@ -213,6 +218,21 @@ class YouTubeClient:
             raise ValueError("videos.list accepts at most 50 ids")
         params = {"part": VIDEO_PARTS, "id": ",".join(ids), "maxResults": 50, "fields": VIDEO_FIELDS}
         return self._get("videos", params).get("items", [])
+
+    # ------------------------------------------------------------------ writes (need the manage scope)
+
+    def subscription_id(self, channel_id: str) -> str | None:
+        """The user's subscription resource id for a channel (None when not subscribed)."""
+        params = {"part": "id", "mine": "true", "forChannelId": channel_id, "fields": "items(id)"}
+        items = self._get("subscriptions", params).get("items", [])
+        return items[0]["id"] if items else None
+
+    def delete_subscription(self, subscription_id: str) -> None:
+        self._request("DELETE", "subscriptions", {"id": subscription_id}, cost=50)
+
+    def rate(self, video_id: str, rating: str) -> None:
+        """Set the user's rating: ``like``, ``dislike`` or ``none`` (removes a like)."""
+        self._request("POST", "videos/rate", {"id": video_id, "rating": rating}, cost=50)
 
 
 def client_for_user(user_id: int, **kwargs) -> YouTubeClient:  # type: ignore[no-untyped-def]

@@ -114,4 +114,6 @@ def _refresh(account_id: int, refresh_token: str, http: httpx.Client | None) -> 
         acc.token_expires_at = datetime.now(UTC) + timedelta(seconds=int(body.get("expires_in", 3600)))
         if body.get("refresh_token"):
             acc.refresh_token_enc = encrypt(body["refresh_token"])
+        if body.get("scope"):  # follows grants revoked or added outside DownTube
+            acc.scopes = body["scope"]
     return access

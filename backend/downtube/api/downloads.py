@@ -4,7 +4,7 @@ import logging
 from typing import Literal
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from downtube.api.views import PageParams, job_out, user_video_ids
@@ -12,7 +12,7 @@ from downtube.auth.deps import current_user, request_db, require_acknowledged
 from downtube.db import read_session, write_session
 from downtube.downloads import jobs
 from downtube.main import ApiError
-from downtube.models import DiscoverySource, DownloadJob, JobStatus, User, Video, VideoSource
+from downtube.models import DiscoverySource, DownloadJob, JobStatus, User, Video, VideoExclusion, VideoSource
 from downtube.schemas import JobCounts, JobOut, ManualEnqueueRequest, Page
 from downtube.sync import common
 from downtube.youtube.client import AuthRevoked, QuotaExceeded, YouTubeError, client_for_user
@@ -79,6 +79,10 @@ def enqueue_manual(body: ManualEnqueueRequest, user: User = Depends(require_ackn
             w.add(VideoSource(user_id=user.id, video_id=body.video_id, source=DiscoverySource.manual))
         else:
             src.active, src.archive_eligible = True, True
+        # An explicit request overrides an earlier "deleted from the library" decision.
+        w.execute(
+            delete(VideoExclusion).where(VideoExclusion.user_id == user.id, VideoExclusion.video_id == body.video_id)
+        )
         w.flush()
         existed = jobs.active_job(w, body.video_id) is not None
         job = jobs.enqueue(w, body.video_id, user_id=user.id, priority=jobs.PRIORITY_MANUAL, max_height=body.max_height)
