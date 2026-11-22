@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-11-22
+
+### Fixed
+- **Library channel filter** listed only the channels of the first 100 videos (by title), so larger
+  archives were missing channels. It now lists every channel with archived videos, alphabetically,
+  with the number of videos. New endpoint `GET /api/library/channels`.
+
 ## [0.4.1] - 2026-11-22
 
 ### Changed

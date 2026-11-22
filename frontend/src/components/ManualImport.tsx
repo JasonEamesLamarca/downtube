@@ -46,6 +46,7 @@ export function ImportDialog({ job, importPath, onClose }: { job: JobOut; import
       qc.invalidateQueries({ queryKey: ['downloads'] });
       qc.invalidateQueries({ queryKey: ['download-counts'] });
       qc.invalidateQueries({ queryKey: ['library'] });
+      qc.invalidateQueries({ queryKey: ['library-channels'] });
     },
   });
   const close = () => { abort.current?.abort(); onClose(); };

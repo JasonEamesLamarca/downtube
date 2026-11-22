@@ -234,6 +234,7 @@ Finalization: copy/move from temp to `<final>.downtube-partial` in the target di
 | GET `/imports` | → `ImportFolderOut` (files waiting in `<archive_root>/.import`, last problem per file) |
 | POST `/imports/scan` | → `ImportFolderOut` (imports every stable file named `…[VIDEOID].ext`; also runs every 5 min) |
 | GET `/library?q=&channel_id=&sort=date|title|size|height&order=&page=&page_size=` | → `Page[MediaFileOut]` |
+| GET `/library/channels` | → `list[LibraryChannelOut]` (`channel_id`, `title`, `count`): every channel with a current archive for the user, sorted by title |
 | GET `/library/{video_id}/stream` | video bytes (HTTP Range), only the DB-recorded file |
 | GET `/library/{video_id}/thumbnail` | jpeg if local thumbnail exists |
 | POST `/library/{video_id}/delete` | `DeleteVideoRequest` → `DeleteVideoResult`. Deletes the file, sidecars and kept superseded copies; adds a `video_exclusions` row (no sync re-queues it; `POST /downloads` lifts it); optionally `videos.rate=none` (50 units) first. 403 `manage_permission_required`, 409 `job_running` / `shared_video` |

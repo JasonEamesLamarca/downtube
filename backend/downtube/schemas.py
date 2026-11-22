@@ -460,3 +460,9 @@ class ImportFileOut(ApiModel):
 class ImportFolderOut(ApiModel):
     path: str
     files: list[ImportFileOut]
+
+
+class LibraryChannelOut(ApiModel):
+    channel_id: str
+    title: str
+    count: int
