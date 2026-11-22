@@ -55,7 +55,7 @@ function FolderPicker({ onClose, onDone }: { onClose: () => void; onDone: () => 
         <button className="btn" onClick={onClose}>Cancel</button>
         <button className="btn btn-primary" disabled={!cur || set.isPending} onClick={() => cur && set.mutate({ path: cur, create: false })}>Use this folder</button>
       </>}>
-      <p role="note" className="rounded border border-amber-400 bg-amber-50 p-2 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
+      <p role="note" className="rounded-sm border border-amber-400 bg-amber-50 p-2 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100">
         Changing the archive folder does not move existing archives. Files already downloaded stay where they are and will no longer appear in new-download checks for the new location.
       </p>
       {br.isLoading && <Spinner />}
@@ -63,7 +63,7 @@ function FolderPicker({ onClose, onDone }: { onClose: () => void; onDone: () => 
       {br.data && (
         <>
           <p className="break-all text-xs">Current location: <code>{br.data.path}</code></p>
-          <ul className="max-h-60 divide-y divide-slate-200 overflow-y-auto rounded border border-slate-200 dark:divide-slate-700 dark:border-slate-700">
+          <ul className="max-h-60 divide-y divide-slate-200 overflow-y-auto rounded-sm border border-slate-200 dark:divide-slate-700 dark:border-slate-700">
             {br.data.parent && <li><button className="w-full p-2 text-left hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => setPath(br.data.parent!)}>.. (up)</button></li>}
             {br.data.entries.map((e) => (
               <li key={e.path}>
@@ -122,7 +122,7 @@ function LogsViewer() {
         <button className="btn" onClick={() => (on ? q.refetch() : setOn(true))}>{on ? 'Refresh' : 'Show logs'}</button>
       </div>
       <ErrorNote error={q.error} />
-      {q.data && <pre aria-label="Log output" className="max-h-96 overflow-auto rounded bg-slate-900 p-2 text-xs text-slate-100">{q.data.lines.join('\n') || '(empty)'}</pre>}
+      {q.data && <pre aria-label="Log output" className="max-h-96 overflow-auto rounded-sm bg-slate-900 p-2 text-xs text-slate-100">{q.data.lines.join('\n') || '(empty)'}</pre>}
     </Section>
   );
 }

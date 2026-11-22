@@ -111,7 +111,7 @@ export function SetupPage({ status, onComplete }: { status: SetupStatus; onCompl
           )}
         </section>
 
-        {formError && <p role="alert" className="rounded border border-red-300 bg-red-50 p-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">{formError}</p>}
+        {formError && <p role="alert" className="rounded-sm border border-red-300 bg-red-50 p-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">{formError}</p>}
         <button type="submit" className="btn btn-primary w-full py-2" disabled={m.isPending}>Complete setup</button>
         <p className="text-xs text-slate-500">DownTube is an independent self-hosted tool and is not affiliated with, endorsed by, or sponsored by Google or YouTube.</p>
       </form>

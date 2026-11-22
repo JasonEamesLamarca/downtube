@@ -25,12 +25,12 @@ export function LoginPage({ setupComplete = false }: { setupComplete?: boolean }
         <h1 className="text-3xl font-bold text-brand-600">DownTube</h1>
         <p className="text-sm text-slate-600 dark:text-slate-400">Self-hosted archive for your liked videos and subscriptions.</p>
         {setupComplete && (
-          <p role="status" className="rounded border border-green-300 bg-green-50 p-2 text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
+          <p role="status" className="rounded-sm border border-green-300 bg-green-50 p-2 text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
             Setup complete — sign in with Google
           </p>
         )}
         {error && (
-          <p role="alert" className="rounded border border-red-300 bg-red-50 p-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
+          <p role="alert" className="rounded-sm border border-red-300 bg-red-50 p-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
             {MESSAGES[error] ?? `Sign-in failed: ${error}`}
           </p>
         )}

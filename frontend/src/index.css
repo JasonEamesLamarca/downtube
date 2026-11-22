@@ -1,6 +1,23 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Tailwind 4: theme tokens live in CSS (was tailwind.config.js). Dark mode follows the OS
+   (prefers-color-scheme), the Tailwind 4 default, as before. */
+@theme {
+  --color-brand-50: #fef2f2;
+  --color-brand-500: #e11d48;
+  --color-brand-600: #be123c;
+  --color-brand-700: #9f1239;
+}
+
+/* Keep Tailwind 3 defaults that Tailwind 4 changed. */
+@layer base {
+  *, ::after, ::before, ::backdrop, ::file-selector-button { border-color: var(--color-gray-200, currentcolor); }
+  input::placeholder, textarea::placeholder { color: var(--color-gray-400); }
+  button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
+  input[type="file"]::file-selector-button {
+    @apply mr-2 cursor-pointer rounded-md border border-slate-300 bg-white px-3 py-1 text-sm font-medium text-slate-800 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700;
+  }
+}
 
 @layer base {
   body { @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100; }
@@ -11,6 +28,6 @@
   .btn-primary { @apply border-brand-600 bg-brand-600 text-white hover:bg-brand-700 dark:border-brand-600 dark:bg-brand-600 dark:hover:bg-brand-700; }
   .btn-danger { @apply border-red-600 text-red-700 dark:text-red-400; }
   .input { @apply rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-900; }
-  .card { @apply rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900; }
+  .card { @apply rounded-lg border border-slate-200 bg-white p-4 shadow-xs dark:border-slate-800 dark:bg-slate-900; }
   .badge { @apply inline-block rounded-full px-2 py-0.5 text-xs font-medium bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100; }
 }

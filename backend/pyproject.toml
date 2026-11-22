@@ -1,34 +1,34 @@
 [project]
 name = "downtube"
-version = "0.4.3"
+version = "0.4.4"
 description = "Self-hosted YouTube archiving platform (likes + subscriptions, original quality up to 4K, MP4)"
 license = { text = "MIT" }
 requires-python = ">=3.12"
 dependencies = [
-  "fastapi>=0.115",
-  "uvicorn[standard]>=0.32",
-  "sqlalchemy>=2.0.36",
-  "alembic>=1.14",
-  "pydantic>=2.9",
-  "pydantic-settings>=2.6",
-  "httpx>=0.28",
-  "cryptography>=43",
-  "apscheduler>=3.10,<4",
-  "python-multipart>=0.0.12",
+  "fastapi>=0.165",
+  "uvicorn[standard]>=0.54",
+  "sqlalchemy>=2.1.9",
+  "alembic>=1.20.1",
+  "pydantic>=2.14",
+  "pydantic-settings>=2.16",
+  "httpx>=0.28.1",
+  "cryptography>=50.0.2",
+  "apscheduler>=3.11,<4",
+  "python-multipart>=0.0.34",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "pytest>=8.3",
-  "pytest-cov>=6",
-  "respx>=0.21",
-  "ruff>=0.8",
-  "mypy>=1.13",
+  "pytest>=9.2",
+  "pytest-cov>=7.1",
+  "respx>=0.23",
+  "ruff>=0.17",
+  "mypy>=2.4",
   "pip-audit>=2.7",
 ]
 
 [build-system]
-requires = ["setuptools>=70"]
+requires = ["setuptools>=84.2.1"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]

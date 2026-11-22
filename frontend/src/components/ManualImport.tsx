@@ -87,7 +87,7 @@ export function ImportDialog({ job, importPath, onClose }: { job: JobOut; import
             </select>
             <CopyButton text={cmd} label="Copy the yt-dlp command" />
           </div>
-          <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-all rounded bg-slate-100 p-2 font-mono text-xs dark:bg-slate-900" aria-label="yt-dlp command">{cmd}</pre>
+          <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-all rounded-sm bg-slate-100 p-2 font-mono text-xs dark:bg-slate-900" aria-label="yt-dlp command">{cmd}</pre>
           <details className="mt-1 text-xs text-slate-600 dark:text-slate-400">
             <summary className="cursor-pointer">Setting up yt-dlp and fixing common errors</summary>
             <ul className="mt-1 list-disc space-y-1 pl-5">
