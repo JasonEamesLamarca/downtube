@@ -24,6 +24,7 @@ from downtube.models import (
     SyncCheckpoint,
     SyncRun,
     Video,
+    VideoExclusion,
     VideoSource,
     WebSession,
 )
@@ -79,6 +80,7 @@ def _delete_user_data(s, user_id: int) -> dict:  # type: ignore[no-untyped-def]
         "rules": s.execute(delete(ChannelRule).where(ChannelRule.user_id == user_id)).rowcount,
         "subscriptions": s.execute(delete(Subscription).where(Subscription.user_id == user_id)).rowcount,
     }
+    s.execute(delete(VideoExclusion).where(VideoExclusion.user_id == user_id))
     s.execute(delete(SyncRun).where(SyncRun.user_id == user_id))
     s.execute(delete(SyncCheckpoint).where(SyncCheckpoint.user_id == user_id))
     s.execute(delete(WebSession).where(WebSession.user_id == user_id))

@@ -7,7 +7,7 @@ import type { Me } from '../api/types';
 
 export const ME: Me = {
   id: 1, email: 'a@b.c', display_name: 'A', picture_url: null, is_admin: true,
-  acknowledged_terms: true, account_status: 'active', youtube_channel_id: null, csrf_token: 'tok',
+  acknowledged_terms: true, account_status: 'active', youtube_channel_id: null, can_manage_youtube: false, csrf_token: 'tok',
 };
 
 export function renderPage(ui: ReactElement, me: Me = ME) {

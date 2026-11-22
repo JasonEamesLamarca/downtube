@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { server } from '../test/server';
-import { renderPage } from '../test/utils';
+import { ME, renderPage } from '../test/utils';
 import { sub } from '../test/fixtures';
 import SubscriptionsPage from './Subscriptions';
 
@@ -45,5 +45,37 @@ describe('SubscriptionsPage', () => {
     expect(bodies[0]).toEqual({ mode: 'backfill_once' });
     expect(bodies[1]).toEqual({ mode: 'backfill_once', confirm_large: true });
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('unsubscribes after confirmation when the manage permission is granted', async () => {
+    let called = 0;
+    server.use(
+      http.get('/api/subscriptions', () => page([sub()])),
+      http.post('/api/subscriptions/UC1/unsubscribe', () => { called += 1; return HttpResponse.json(sub({ subscribed: false })); }),
+    );
+    const user = userEvent.setup();
+    renderPage(<SubscriptionsPage />, { ...ME, can_manage_youtube: true });
+    await user.click(await screen.findByRole('button', { name: 'Unsubscribe from Channel One' }));
+    const dialog = await screen.findByRole('dialog', { name: /unsubscribe from channel one/i });
+    expect(dialog).toHaveTextContent('stay in your library');
+    await user.click(screen.getByRole('button', { name: 'Unsubscribe' }));
+    await waitFor(() => expect(called).toBe(1));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('asks for the manage permission before unsubscribing', async () => {
+    server.use(http.get('/api/subscriptions', () => page([sub()])));
+    const user = userEvent.setup();
+    renderPage(<SubscriptionsPage />);
+    await user.click(await screen.findByRole('button', { name: 'Unsubscribe from Channel One' }));
+    expect(screen.getByRole('button', { name: 'Unsubscribe' })).toBeDisabled();
+    expect(screen.getByRole('link', { name: /grant permission/i })).toHaveAttribute('href', '/api/auth/login?manage=true');
+  });
+
+  it('marks channels you are no longer subscribed to', async () => {
+    server.use(http.get('/api/subscriptions', () => page([sub({ subscribed: false })])));
+    renderPage(<SubscriptionsPage />);
+    expect(await screen.findByText('Unsubscribed')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Unsubscribe from Channel One' })).not.toBeInTheDocument();
   });
 });

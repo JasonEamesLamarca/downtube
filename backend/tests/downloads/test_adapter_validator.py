@@ -108,3 +108,17 @@ def test_parse_ffprobe_no_video(tmp_path):
     f.write_bytes(b"1")
     with pytest.raises(ValidationError):
         parse_ffprobe({"streams": [{"codec_type": "audio"}], "format": {}}, f)
+
+
+def test_download_argv_embeds_metadata_without_reencoding(tmp_path):
+    sel = select_formats(parse_formats(ladder(2160)), 2160)
+    base = YtDlpAdapter("yt-dlp").build_download_argv(
+        "abcdefghijk", sel, tmp_path, rate_limit_kbps=None, write_thumbnail=False
+    )
+    assert "--embed-metadata" not in base
+    argv = YtDlpAdapter("yt-dlp").build_download_argv(
+        "abcdefghijk", sel, tmp_path, rate_limit_kbps=None, write_thumbnail=False, embed_metadata=True
+    )
+    assert "--embed-metadata" in argv and "--no-embed-info-json" in argv and "--no-embed-chapters" in argv
+    assert "--recode-video" not in argv and "--remux-video" not in argv
+    assert argv[-2] == "--"

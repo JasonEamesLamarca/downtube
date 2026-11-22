@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from downtube.config import get_config
-from downtube.models import DownloadJob, JobStatus, MediaFile, Video, VideoSource
+from downtube.models import DownloadJob, JobStatus, MediaFile, Video, VideoExclusion, VideoSource
 from downtube.schemas import JobOut, QuotaInfo, StorageInfo, VideoOut
 from downtube.settings_service import get_settings
 from downtube.storage import paths
@@ -60,6 +60,13 @@ def video_states(s: Session, user_id: int, video_ids: list[str]) -> dict[str, Vi
         select(VideoSource).where(VideoSource.user_id == user_id, VideoSource.video_id.in_(video_ids))
     ):
         srcs.setdefault(src.video_id, []).append(src)
+    excluded = set(
+        s.scalars(
+            select(VideoExclusion.video_id).where(
+                VideoExclusion.user_id == user_id, VideoExclusion.video_id.in_(video_ids)
+            )
+        )
+    )
     for vid, st in out.items():
         mine = srcs.get(vid, [])
         live = [x for x in mine if x.active]
@@ -77,6 +84,8 @@ def video_states(s: Session, user_id: int, video_ids: list[str]) -> dict[str, Vi
             st.state = "archived"
         elif vid in active:
             st.state = "downloading" if active[vid].status == JobStatus.running else "queued"
+        elif vid in excluded:
+            st.state = "excluded"
         elif vid in latest and latest[vid].status == JobStatus.failed:
             st.state = "failed"
         elif vid in latest and latest[vid].status == JobStatus.unsupported:

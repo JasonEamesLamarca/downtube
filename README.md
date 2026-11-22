@@ -36,6 +36,14 @@ interrupted downloads have been verified live. Current release: see the [CHANGEL
   DownTube fetches the better version and replaces the old file only after the new one is validated.
 - **Download queue.** Retries with backoff, pause/resume/cancel, a download window and
   bandwidth limits, and a free-disk-space guard.
+- **Media-server metadata.** Writes the title and full YouTube description to an `.nfo` file next to
+  each video (Plex NFO agent, Jellyfin, Emby, Kodi) and stores them as tags inside new MP4 files
+  (read by Plex in any library type). A Settings button adds `.nfo` files to videos archived earlier.
+- **Library clean-up.** Delete a video from the Library: the files go, and DownTube never downloads it
+  again. For a liked video it can also remove the like on YouTube.
+- **Unsubscribe from the app.** Unsubscribing turns the channel's archiving off and keeps what is
+  already archived. Removing likes and unsubscribing use an optional extra Google permission
+  that you grant only if you want these actions; otherwise DownTube only reads your account.
 - **Quota-aware.** Tracks YouTube Data API usage against a daily budget.
 - **Web UI and REST API.** Browse subscriptions, likes, jobs and the library; OpenAPI docs at `/api/docs` (signed-in users only).
 

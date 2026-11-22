@@ -4,6 +4,8 @@ import { ExternalLink } from 'lucide-react';
 import { ApiError } from '../api/client';
 import { endpoints } from '../api/endpoints';
 import type { ArchiveMode, BulkResult, ChannelEstimate, ChannelRulePatch, ResolutionCap, SubscriptionOut } from '../api/types';
+import { useMe } from '../auth';
+import { ManagePermissionNote } from '../components/ManagePermission';
 import { ErrorNote, Modal, PageHeader, Pagination, ResolutionNote, ResolutionSelect, Spinner, StateBadge, Thumb, useDebounced } from '../components/ui';
 import { formatBytes, formatRelative } from '../lib/format';
 
@@ -69,6 +71,23 @@ function FiltersDialog({ channel, onClose, onSave, error, pending }: {
   );
 }
 
+export function UnsubscribeDialog({ channel, onClose, onDone }: { channel: SubscriptionOut; onClose: () => void; onDone: () => void }) {
+  const me = useMe();
+  const m = useMutation({ mutationFn: () => endpoints.unsubscribe(channel.channel_id), onSuccess: onDone });
+  return (
+    <Modal title={`Unsubscribe from ${channel.title}?`} onClose={onClose}
+      footer={<>
+        <button className="btn" onClick={onClose}>Cancel</button>
+        <button className="btn btn-danger" disabled={!me.can_manage_youtube || m.isPending} onClick={() => m.mutate()}>Unsubscribe</button>
+      </>}>
+      <p>This unsubscribes your YouTube account from <strong>{channel.title}</strong>, turns archiving off for this channel and cancels its queued downloads.</p>
+      <p>Videos already archived ({channel.archived_count}) stay in your library. Delete them from the Library page if you no longer want them.</p>
+      {!me.can_manage_youtube && <ManagePermissionNote action="unsubscribe from channels" />}
+      <ErrorNote error={m.error} />
+    </Modal>
+  );
+}
+
 export default function SubscriptionsPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
@@ -80,6 +99,7 @@ export default function SubscriptionsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pending, setPending] = useState<PendingSingle | PendingBulk | null>(null);
   const [filtersFor, setFiltersFor] = useState<SubscriptionOut | null>(null);
+  const [unsubFor, setUnsubFor] = useState<SubscriptionOut | null>(null);
   const [bulkMode, setBulkMode] = useState<ArchiveMode | ''>('');
   const [bulkRes, setBulkRes] = useState<ResolutionCap | 'keep'>('keep');
   const q = useDebounced(search);
@@ -206,6 +226,7 @@ export default function SubscriptionsPage() {
                   <div className="min-w-0 flex-1 basis-56">
                     <p className="flex items-center gap-2 font-medium">
                       <span className="truncate">{c.title}</span>
+                      {!c.subscribed && <span className="rounded bg-slate-200 px-1.5 text-xs font-normal text-slate-700 dark:bg-slate-700 dark:text-slate-200">Unsubscribed</span>}
                       <a href={c.url} target="_blank" rel="noreferrer" aria-label={`Open ${c.title} on YouTube`}><ExternalLink size={14} /></a>
                     </p>
                     <p className="line-clamp-2 text-xs text-slate-500">{c.description}</p>
@@ -222,6 +243,7 @@ export default function SubscriptionsPage() {
                     </label>
                     <button className="btn" onClick={() => setFiltersFor(c)} aria-label={`Filters for ${c.title}`}>Filters</button>
                     <button className="btn" disabled={syncOne.isPending} onClick={() => syncOne.mutate(c.channel_id)} aria-label={`Sync ${c.title} now`}>Sync now</button>
+                    {c.subscribed && <button className="btn btn-danger" onClick={() => setUnsubFor(c)} aria-label={`Unsubscribe from ${c.title}`}>Unsubscribe</button>}
                   </div>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
@@ -238,6 +260,8 @@ export default function SubscriptionsPage() {
         </>
       )}
       {patch.error && !(patch.error instanceof ApiError && patch.error.code === 'confirmation_required') && !filtersFor && <ErrorNote error={patch.error} />}
+
+      {unsubFor && <UnsubscribeDialog channel={unsubFor} onClose={() => setUnsubFor(null)} onDone={() => { setUnsubFor(null); refresh(); }} />}
 
       {filtersFor && (
         <FiltersDialog channel={filtersFor} onClose={() => setFiltersFor(null)} pending={patch.isPending} error={patch.error}

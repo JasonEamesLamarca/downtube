@@ -16,7 +16,7 @@ const {
 
 const REPO = path.resolve(__dirname, "..", "..");
 const IMG = (p) => path.join(REPO, "docs", "images", p);
-const VERSION = "0.2.1";
+const VERSION = "0.3.0";
 const DATE = "November 2026";
 
 const FONT = "Calibri";
@@ -203,7 +203,7 @@ BUL([
 H2("What it does, in one picture");
 IMAGE("diagrams/pipeline.png", "From a like or a new upload to a validated MP4 file in the archive.");
 H2("Status");
-P(`Version ${VERSION} is in production use on a Synology NAS behind the DSM reverse proxy with a Let's Encrypt certificate. Real Google sign-in (OAuth with PKCE) and the YouTube Data API have been verified live: sign-in and allowlist refusal, subscription sync (234 channels for 10 quota units), likes baseline, archiving of hundreds of subscription videos, and resuming interrupted downloads across an upgrade.`);
+P(`Version ${VERSION} is in production use on a Synology NAS behind the DSM reverse proxy with a Let's Encrypt certificate. Real Google sign-in (OAuth with PKCE) and the YouTube Data API have been verified live: sign-in and allowlist refusal, subscription sync (234 channels for 10 quota units), likes baseline, archiving of hundreds of subscription videos, and resuming interrupted downloads across an upgrade. Version 0.3.0 adds deleting videos from the library, unsubscribing from channels, and description files for media servers.`);
 
 // ---- 2. How it works
 H1("2. How it works");
@@ -244,7 +244,7 @@ H2("YouTube API quota");
 P("Each Google Cloud project gets 10,000 quota units a day; DownTube budgets 9,000 by default and never uses the expensive search endpoint. Listing 50 likes, subscriptions or uploads costs one unit, so even hundreds of channels use only a small part of the budget. When the budget runs out, syncs are deferred until the quota resets (midnight Pacific Time) and likes polling keeps priority.");
 H2("Security model");
 BUL([
-  "**Sign-in:** Google OAuth 2.0 authorisation code flow with PKCE, state and nonce; the only YouTube scope is `youtube.readonly`.",
+  "**Sign-in:** Google OAuth 2.0 authorisation code flow with PKCE, state and nonce. The YouTube scope is `youtube.readonly`. The optional `youtube.force-ssl` permission (unsubscribe, remove a like) is requested only when you grant it in Settings, and is used only for actions you confirm.",
   "**Allowlist:** only the Google accounts you list can sign in; the list is re-checked on every request and by the scheduler. Removing an account ends its sessions and stops its syncs.",
   "**Secrets at rest:** OAuth tokens and the client secret are Fernet-encrypted in the database; the setup code is stored only as a SHA-256 hash.",
   "**Web hardening:** HttpOnly session cookies, CSRF token header for every change, strict Content-Security-Policy, HSTS over HTTPS, API documentation only for signed-in users, rate-limited setup page.",
@@ -271,15 +271,19 @@ TABLE(
   [2600, 6400],
 );
 NOTE("Backfilling a channel with more videos than the large-channel threshold (200 by default) first shows the number of videos and an estimate, and asks for confirmation.", "tip");
+P("**Unsubscribe** unsubscribes your YouTube account from the channel, turns its rule off and cancels its queued downloads. Videos already archived stay in the library. A channel you left on YouTube is marked _Unsubscribed_.");
+IMAGE("screenshots/unsubscribe.png", "Unsubscribing asks for confirmation; without the optional permission it offers to grant it first.");
 H2("Liked videos");
 IMAGE("screenshots/likes.png", "Liked videos: everything DownTube has seen in your likes, with archive status.");
 H2("Downloads");
 IMAGE("screenshots/downloads.png", "Downloads: live progress, speed and ETA; pause, cancel and retry; archive a single video by URL.");
 H2("Library");
 IMAGE("screenshots/library.png", "Library: archived files with resolution, codec, size and the path inside the archive.");
-P("Files are stored as `<Channel>/YYYY-MM-DD - Title [VIDEOID].mp4`. A thumbnail (`.jpg`) and, optionally, an `.nfo` metadata file are written next to each video for Plex and Jellyfin.");
+P("Files are stored as `<Channel>/YYYY-MM-DD - Title [VIDEOID].mp4`, with a thumbnail (`.jpg`) and an `.nfo` file next to each video. The `.nfo` holds the title, the full YouTube description, the date, the runtime and the channel, in the format Plex's NFO agent, Jellyfin, Emby and Kodi read. New MP4 files also carry the title, description and date as embedded tags (copied in, never re-encoded).");
+P("The trash button deletes a video: the file, its thumbnail, its `.nfo` and any kept older copy are removed, and DownTube will not download that video again, whether it came from a like or from a channel. For a liked video you can also remove the like on YouTube. To get a deleted video back, archive it again by URL on the Downloads page.");
+IMAGE("screenshots/library-delete.png", "Deleting a liked video. Removing the like on YouTube needs the optional permission.");
 H2("Settings");
-P("Settings group the archive folder, likes monitoring, quality and formats, download limits (concurrency, bandwidth, time window), disk safety, Plex sidecar files, the API quota budget, Google sign-in and access (administrators only) and the log viewer.");
+P("Settings group the archive folder, likes monitoring, quality and formats, download limits (concurrency, bandwidth, time window), disk safety, media server files (thumbnail, `.nfo`, embedded tags, and a button that writes `.nfo` files for videos archived earlier), the API quota budget, Google sign-in and access (administrators only) and the log viewer. **Account & connection** shows whether the optional permission to manage your YouTube account is granted, with a button to grant it.");
 IMAGE("screenshots/settings.png", "Settings (full page).", 600, 900);
 H2("Dark theme and phones");
 IMAGE("screenshots/subscriptions-dark.png", "Dark theme.");
@@ -316,6 +320,7 @@ NUM([
   "Copy the **Client ID** and the **Client secret** from the dialog (or choose **Download JSON**) and keep them somewhere safe. You will paste them into DownTube's setup page in step 4.9.",
 ]);
 NOTE("Leave the app **In production**. In Testing mode Google expires the sign-in after 7 days and DownTube would stop syncing. Production does not mean public: only accounts on DownTube's allowlist can use it. Google shows an \"unverified app\" warning at sign-in; that is expected for a personal app.", "warn");
+P("Optional: to unsubscribe and remove likes from DownTube, go to **Data access > Add or remove scopes**, add `https://www.googleapis.com/auth/youtube.force-ssl` and save. DownTube asks for it only when a user grants it in Settings.");
 NOTE("The new Google Auth Platform shows the client secret only once. If you lose it, add a new secret to the client and enter it in DownTube under Settings > Google sign-in & access.", "note");
 
 H2("4.3 Point a hostname at your home");
@@ -480,9 +485,11 @@ TABLE(
 NOTE("To test from outside without a phone, use a multi-location checker (for example check-host.net). Some single online fetch services are blocked by home connections and report \"connection refused\" even when the site works.", "tip");
 
 H2("4.13 Plex or Jellyfin (optional)");
+P("Choose the library type by how you want descriptions shown. Plex reads `.nfo` files only with its NFO agent, which works in **Movie** and **TV** libraries (Plex Media Server 1.43.1 or later). An **Other Videos** library uses the tags embedded in the MP4 instead, which only files downloaded with DownTube 0.3.0 or later have. Jellyfin, Emby and Kodi read the `.nfo` files in any library.");
 NUM([
-  "In Plex, **Add Library**, type **Other Videos**, folder `/volume1/video/DownTube`.",
+  "In Plex, **Add Library**, type **Movies** (with the Plex NFO agent) or **Other Videos**, folder `/volume1/video/DownTube`.",
   "Under **Advanced**, enable automatic scanning and partial scans on change.",
+  "For videos archived before 0.3.0, run **Settings > Media server files > Write .nfo files for videos already archived** once, then refresh the Plex library metadata.",
   "Some clients cannot play 4K VP9 or AV1 directly and Plex transcodes, which is slow on a NAS CPU. Settings > Quality & formats > _Compatibility profile_ prefers H.264/AAC at the same resolution (YouTube offers H.264 only up to 1080p).",
 ]);
 
@@ -491,10 +498,11 @@ H1("5. Running DownTube");
 H2("Upgrading");
 NUM([
   "Read the CHANGELOG for the new version.",
-  "Change the image tag in your compose file (for example `:0.2.1` to the new version).",
+  "Change the image tag in your compose file (for example `:0.2.1` to `:0.3.0`).",
   "Run the deploy script again. It keeps `.env` and the database; migrations run automatically.",
 ]);
 P("Downloads that are running during the restart are put back in the queue and resume from their partial files; the restart does not count as a failed attempt. This was verified during the 0.2.0 to 0.2.1 upgrade: two running jobs stopped, restarted 8 seconds later and completed normally.");
+P("Upgrading to 0.3.0: optionally add the `youtube.force-ssl` scope in Google Cloud (step 4.2), grant the permission in Settings if you want to unsubscribe and remove likes from DownTube, and write `.nfo` files for videos archived earlier from Settings > Media server files.");
 P("Update regularly even without a DownTube release: every image ships a current yt-dlp, and yt-dlp must keep up with changes on YouTube.");
 H2("Backups");
 BUL([

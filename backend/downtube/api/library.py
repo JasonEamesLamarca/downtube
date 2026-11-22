@@ -2,19 +2,37 @@ from __future__ import annotations
 
 import logging
 import os
+from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import FileResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from downtube.api.views import PageParams, user_video_ids, video_states
+from downtube.api.youtube_write import call_youtube, ensure_manage_permission
+from downtube.auth.audit import audit
 from downtube.auth.deps import current_user, request_db
+from downtube.auth.ratelimit import client_ip
+from downtube.db import read_session, write_session
+from downtube.downloads import jobs
+from downtube.downloads.manager import write_nfo
 from downtube.main import ApiError
-from downtube.models import MediaFile, User, Video
-from downtube.schemas import MediaFileOut, Page
+from downtube.models import (
+    ACTIVE_JOB_STATUSES,
+    Channel,
+    DiscoverySource,
+    DownloadJob,
+    JobStatus,
+    MediaFile,
+    User,
+    Video,
+    VideoExclusion,
+    VideoSource,
+)
+from downtube.schemas import DeleteVideoRequest, DeleteVideoResult, MediaFileOut, Page, SidecarResult
 from downtube.storage import paths
 
 log = logging.getLogger("downtube.api")
@@ -136,3 +154,183 @@ def thumbnail(video_id: str, user: User = Depends(current_user), db: Session = D
     if thumb is None:
         raise ApiError(404, "not_found", "no local thumbnail")
     return FileResponse(thumb, media_type="image/jpeg")
+
+
+# --------------------------------------------------------------------------- delete
+
+
+def _files_of(mf: MediaFile) -> list[Path]:
+    """Files on disk that belong to a media row: the video, its sidecars, a kept superseded copy."""
+    out: list[Path] = []
+    try:
+        media = media_path(mf)
+    except paths.StorageError:
+        return out
+    if mf.is_current:
+        out.append(media)
+    if (mf.superseded_action or "").startswith("kept:"):
+        out.append(media.with_name(mf.superseded_action.split(":", 1)[1]))  # type: ignore[union-attr]
+    out += [media.with_name(media.stem + ".jpg"), media.with_name(media.stem + ".nfo")]
+    return out
+
+
+def _rel(root: str, p: Path) -> str:
+    try:
+        return str(p.relative_to(paths.resolve_within_mounts(root)))
+    except (ValueError, paths.StorageError):
+        return p.name
+
+
+@router.post("/library/{video_id}/delete", response_model=DeleteVideoResult)
+def delete_video(
+    video_id: str,
+    request: Request,
+    body: DeleteVideoRequest | None = None,
+    user: User = Depends(current_user),
+) -> DeleteVideoResult:
+    """Delete an archived video. Liked → optionally remove the like on YouTube; in every case the
+    video is excluded so no sync downloads it again for this user."""
+    body = body or DeleteVideoRequest()
+    with read_session() as s:
+        current = _current_for_user(s, user, video_id)
+        if s.scalar(
+            select(DownloadJob.id).where(DownloadJob.video_id == video_id, DownloadJob.status == JobStatus.running)
+        ):
+            raise ApiError(409, "job_running", "a download for this video is running; cancel it in Downloads first")
+        others = s.scalar(
+            select(func.count())
+            .select_from(VideoSource)
+            .where(
+                VideoSource.video_id == video_id,
+                VideoSource.user_id != user.id,
+                VideoSource.active.is_(True),
+                VideoSource.archive_eligible.is_(True),
+            )
+        )
+        if others:
+            raise ApiError(409, "shared_video", "another DownTube user also archives this video; it was not deleted")
+        liked = (
+            s.scalar(
+                select(VideoSource.id).where(
+                    VideoSource.user_id == user.id,
+                    VideoSource.video_id == video_id,
+                    VideoSource.source == DiscoverySource.like,
+                    VideoSource.active.is_(True),
+                )
+            )
+            is not None
+        )
+        root = current.root_path
+
+    like_removed = False
+    if liked and body.remove_like:
+        ensure_manage_permission(user.id)  # fail before anything is deleted
+        call_youtube(user.id, lambda yt: yt.rate(video_id, "none"))
+        like_removed = True
+
+    deleted: list[str] = []
+    warnings: list[str] = []
+    with write_session() as w:
+        rows = list(w.scalars(select(MediaFile).where(MediaFile.video_id == video_id)))
+        files: list[Path] = []
+        main: Path | None = None
+        for mf in rows:
+            if mf.is_current:
+                try:
+                    main = media_path(mf)
+                except paths.StorageError:
+                    main = None
+            for f in _files_of(mf):
+                if f not in files:
+                    files.append(f)
+        for f in files:
+            try:
+                safe = paths.resolve_within_mounts(f)
+                if safe.is_file():
+                    safe.unlink()
+                    deleted.append(_rel(root, safe))
+            except paths.StorageError:
+                warnings.append(f"skipped a file outside the archive: {f.name}")
+            except OSError as e:
+                if f == main:  # the video itself must go, or nothing changes
+                    raise ApiError(500, "storage_error", f"could not delete the file: {e.strerror or e}") from e
+                warnings.append(f"could not delete {f.name}: {e.strerror or e}")
+        now = datetime.now(UTC)
+        for mf in rows:
+            if mf.is_current or (mf.superseded_action or "").startswith("kept:"):
+                mf.is_current = False
+                mf.superseded_at = mf.superseded_at or now
+                mf.superseded_action = "deleted_by_user"
+        for job in w.scalars(
+            select(DownloadJob).where(DownloadJob.video_id == video_id, DownloadJob.status.in_(ACTIVE_JOB_STATUSES))
+        ):
+            jobs.cancel_job(w, job)
+        if w.get(VideoExclusion, (user.id, video_id)) is None:
+            w.add(VideoExclusion(user_id=user.id, video_id=video_id, reason="deleted"))
+        if like_removed:
+            for src in w.scalars(
+                select(VideoSource).where(
+                    VideoSource.user_id == user.id,
+                    VideoSource.video_id == video_id,
+                    VideoSource.source == DiscoverySource.like,
+                )
+            ):
+                src.active = False
+        if liked and not body.remove_like:
+            warnings.append("the video is still liked on YouTube")
+        audit(
+            w,
+            "library.delete",
+            user.id,
+            {"video_id": video_id, "files": len(deleted), "like_removed": like_removed},
+            client_ip(request),
+        )
+    log.info(
+        "user %s deleted %s from the library (%d files, like removed: %s)",
+        user.id,
+        video_id,
+        len(deleted),
+        like_removed,
+    )
+    return DeleteVideoResult(
+        video_id=video_id, deleted_files=deleted, like_removed=like_removed, excluded=True, warnings=warnings
+    )
+
+
+# --------------------------------------------------------------------------- sidecars
+
+
+@router.post("/library/sidecars", response_model=SidecarResult)
+def write_sidecars(overwrite: bool = False, user: User = Depends(current_user)) -> SidecarResult:
+    """Write the description (.nfo) next to every archived video of this user that lacks one."""
+    written = skipped = failed = 0
+    with read_session() as s:
+        rows = s.execute(
+            select(MediaFile, Video, Channel.title)
+            .join(Video, Video.id == MediaFile.video_id)
+            .outerjoin(Channel, Channel.id == Video.channel_id)
+            .where(MediaFile.is_current.is_(True), MediaFile.video_id.in_(user_video_ids(user.id)))
+        ).all()
+        work: list[tuple[MediaFile, Video, str | None]] = []
+        for mf, v, ch_title in rows:
+            snap = Video(
+                id=v.id, title=v.title, description=v.description, published_at=v.published_at, duration_s=v.duration_s
+            )
+            work.append((mf, snap, ch_title or v.channel_title))
+        for row in work:
+            s.expunge(row[0])
+    for mf, snap, title in work:
+        try:
+            media = media_path(mf)
+            if not media.is_file():
+                skipped += 1
+                continue
+            if media.with_name(media.stem + ".nfo").exists() and not overwrite:
+                skipped += 1
+                continue
+            write_nfo(media, snap, title)
+            written += 1
+        except (paths.StorageError, OSError) as e:
+            failed += 1
+            log.warning("could not write .nfo for %s: %s", mf.video_id, e)
+    return SidecarResult(written=written, skipped=skipped, failed=failed)

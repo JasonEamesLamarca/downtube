@@ -69,6 +69,7 @@ class DownloaderAdapter(Protocol):
         write_thumbnail: bool,
         on_progress: ProgressCallback,
         cancel_event: threading.Event,
+        embed_metadata: bool = False,
     ) -> Path: ...
 
 
@@ -184,7 +185,14 @@ class YtDlpAdapter:
 
     # -- media
     def build_download_argv(
-        self, video_id: str, selection: Selection, out_dir: Path, *, rate_limit_kbps: int | None, write_thumbnail: bool
+        self,
+        video_id: str,
+        selection: Selection,
+        out_dir: Path,
+        *,
+        rate_limit_kbps: int | None,
+        write_thumbnail: bool,
+        embed_metadata: bool = False,
     ) -> list[str]:
         argv = [
             self.binary, *BASE_ARGS, *self.extra_args,
@@ -200,6 +208,11 @@ class YtDlpAdapter:
             argv += ["--limit-rate", f"{int(rate_limit_kbps)}K"]
         if write_thumbnail:
             argv += ["--write-thumbnail", "--convert-thumbnails", "jpg", "-o", f"thumbnail:{OUTPUT_STEM}.%(ext)s"]
+        if embed_metadata:
+            # Title, description, date and channel as container tags. ffmpeg remuxes with stream
+            # copy (-c copy): audio and video are never re-encoded. Chapters stay out: in MP4 they
+            # become a text track that some players list as an empty subtitle.
+            argv += ["--embed-metadata", "--no-embed-chapters", "--no-embed-info-json"]
         argv += ["--", video_url(video_id)]
         return argv
 
@@ -213,10 +226,16 @@ class YtDlpAdapter:
         write_thumbnail: bool,
         on_progress: ProgressCallback,
         cancel_event: threading.Event,
+        embed_metadata: bool = False,
     ) -> Path:
         out_dir.mkdir(parents=True, exist_ok=True)
         argv = self.build_download_argv(
-            video_id, selection, out_dir, rate_limit_kbps=rate_limit_kbps, write_thumbnail=write_thumbnail
+            video_id,
+            selection,
+            out_dir,
+            rate_limit_kbps=rate_limit_kbps,
+            write_thumbnail=write_thumbnail,
+            embed_metadata=embed_metadata,
         )
         log.info("yt-dlp download %s format=%s container=%s", video_id, selection.format_spec, selection.container)
         try:

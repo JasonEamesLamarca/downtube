@@ -10,7 +10,7 @@ OUT = sys.argv[2]
 sess = open(f"{SP}/sess").read().strip()
 code = [l for l in open(f"{SP}/a.log") if "setup code" in l][-1].split()[-1]
 MASK = r"""(() => {
-  const fix = t => t.replace(/\/tmp\/[^\s]*?\/demo\/c\/archive/g, '/archive').replace(/http:\/\/localhost:880\d/g, 'https://downtube.example.com');
+  const fix = t => t.replace(/\/tmp\/[^\s]*?\/c\/archive/g, '/archive').replace(/http:\/\/localhost:880\d/g, 'https://downtube.example.com');
   const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   let n; while ((n = w.nextNode())) { const v = fix(n.nodeValue); if (v !== n.nodeValue) n.nodeValue = v; }
   for (const i of document.querySelectorAll('input')) { const v = fix(i.value || ''); if (v !== i.value) i.value = v; }
@@ -70,6 +70,17 @@ async def main():
                 await pg.wait_for_timeout(1500)
                 await pg.evaluate(MASK)
                 await pg.screenshot(path=f"{OUT}/{name}-{scheme}.png", full_page=(name in ("settings",)))
+            if scheme == "light":  # confirmation dialogs (0.3.0)
+                for route, button, name in [
+                    ("/library", 'button[aria-label^="Delete "]', "library-delete"),
+                    ("/subscriptions", 'button[aria-label^="Unsubscribe from"]', "unsubscribe"),
+                ]:
+                    await pg.goto("http://localhost:8802" + route)
+                    await pg.wait_for_timeout(1500)
+                    await pg.locator(button).first.click()
+                    await pg.wait_for_timeout(500)
+                    await pg.evaluate(MASK)
+                    await pg.screenshot(path=f"{OUT}/{name}.png")
             await ctx.close()
         # mobile
         ctx = await b.new_context(

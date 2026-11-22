@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 import os
 import random
+import re
 import shutil
 import threading
 import time
@@ -146,18 +147,51 @@ def unique_target(path: Path) -> Path:
     raise OSError(f"cannot find a free file name for {path}")
 
 
+_XML_INVALID = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]")
+
+
+def _xml_text(value: str | None) -> str:
+    return escape(_XML_INVALID.sub("", value or ""))
+
+
 def nfo_xml(video: Video, channel_title: str | None) -> str:
-    aired = video.published_at.strftime("%Y-%m-%d") if video.published_at else ""
-    return (
-        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<movie>\n'
-        f"  <title>{escape(video.title or video.id)}</title>\n"
-        f"  <plot>{escape(video.description or '')}</plot>\n"
-        f"  <premiered>{aired}</premiered>\n"
-        f"  <studio>{escape(channel_title or '')}</studio>\n"
-        f'  <uniqueid type="youtube" default="true">{video.id}</uniqueid>\n'
-        f"  <trailer>{escape(video.url)}</trailer>\n"
-        "</movie>\n"
-    )
+    """Kodi-style movie .nfo (read by Plex's NFO agent, Jellyfin, Emby and Kodi).
+
+    ``<plot>`` holds the full YouTube description.
+    """
+    pub = video.published_at
+    lines = [
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
+        "<movie>",
+        f"  <title>{_xml_text(video.title or video.id)}</title>",
+        f"  <plot>{_xml_text(video.description)}</plot>",
+    ]
+    if pub:
+        lines += [
+            f"  <premiered>{pub:%Y-%m-%d}</premiered>",
+            f"  <aired>{pub:%Y-%m-%d}</aired>",
+            f"  <year>{pub:%Y}</year>",
+        ]
+    if video.duration_s:
+        lines.append(f"  <runtime>{max(1, round(video.duration_s / 60))}</runtime>")
+    if channel_title:
+        lines.append(f"  <studio>{_xml_text(channel_title)}</studio>")
+    lines += [
+        f'  <uniqueid type="youtube" default="true">{_xml_text(video.id)}</uniqueid>',
+        "  <tag>YouTube</tag>",
+        "</movie>",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def write_nfo(media: Path, video: Video, channel_title: str | None) -> Path:
+    """Write ``<media stem>.nfo`` next to the media file (atomic replace)."""
+    target = media.with_name(media.stem + ".nfo")
+    tmp = target.with_name(target.name + ".tmp")
+    tmp.write_text(nfo_xml(video, channel_title), encoding="utf-8")
+    os.replace(tmp, target)
+    return target
 
 
 # --------------------------------------------------------------------------- manager
@@ -433,6 +467,7 @@ class DownloadManager:
             write_thumbnail=st.write_thumbnails,
             on_progress=on_progress,
             cancel_event=ev,
+            embed_metadata=st.embed_metadata,
         )
         self._check_stop(job_id, ev)
 
@@ -521,7 +556,11 @@ class DownloadManager:
             old_path = Path(old.root_path) / old.rel_path if old else None
             channel_title = channel.title
             snapshot = Video(
-                id=video.id, title=video.title, description=video.description, published_at=video.published_at
+                id=video.id,
+                title=video.title,
+                description=video.description,
+                published_at=video.published_at,
+                duration_s=video.duration_s,
             )
             job = s.get(DownloadJob, job_id)
             assert job is not None
@@ -571,7 +610,7 @@ class DownloadManager:
                 log.warning("job %s: could not write thumbnail", job_id)
         if st.write_nfo:
             try:
-                base.with_name(base.name + ".nfo").write_text(nfo_xml(snapshot, channel_title), encoding="utf-8")
+                write_nfo(dest, snapshot, channel_title)
             except OSError:
                 log.warning("job %s: could not write .nfo", job_id)
 

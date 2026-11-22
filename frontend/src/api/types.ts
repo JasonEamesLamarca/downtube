@@ -24,6 +24,8 @@ export interface Me {
   acknowledged_terms: boolean;
   account_status: 'active' | 'reauth_required' | 'disconnected';
   youtube_channel_id: string | null;
+  /** The optional permission to manage the YouTube account (unsubscribe, remove likes) was granted. */
+  can_manage_youtube: boolean;
   csrf_token: string;
 }
 
@@ -228,6 +230,7 @@ export interface SettingsOut {
   large_channel_threshold: number;
   write_thumbnails: boolean;
   write_nfo: boolean;
+  embed_metadata: boolean;
   keep_superseded_copies: boolean;
   quota_daily_budget: number;
   timezone: string;
@@ -279,3 +282,13 @@ export interface GoogleSettingsUpdate {
   allowed_emails?: string[] | null;
   admin_emails?: string[] | null;
 }
+
+export interface DeleteVideoRequest { remove_like: boolean }
+export interface DeleteVideoResult {
+  video_id: string;
+  deleted_files: string[];
+  like_removed: boolean;
+  excluded: boolean;
+  warnings: string[];
+}
+export interface SidecarResult { written: number; skipped: number; failed: number }

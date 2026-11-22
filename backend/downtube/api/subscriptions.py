@@ -2,14 +2,17 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy import String, and_, cast, distinct, func, or_, select
 from sqlalchemy.orm import Session
 
 from downtube import scheduler
 from downtube.api.rules import ConfirmationRequired, apply_rule_patch
 from downtube.api.views import PageParams, user_video_ids
+from downtube.api.youtube_write import call_youtube
+from downtube.auth.audit import audit
 from downtube.auth.deps import current_user, ensure_acknowledged, request_db
+from downtube.auth.ratelimit import client_ip
 from downtube.db import write_session
 from downtube.main import ApiError
 from downtube.models import (
@@ -245,3 +248,38 @@ def sync_one(channel_id: str, user: User = Depends(current_user), db: Session = 
     if rule is None or rule.mode == ArchiveMode.off:
         raise ApiError(409, "rule_inactive", "this channel has no active archive rule")
     return SyncRunOut.model_validate(runner.start("channel", user.id, channel_id))
+
+
+@router.post("/subscriptions/{channel_id}/unsubscribe", response_model=SubscriptionOut)
+def unsubscribe(
+    channel_id: str, request: Request, user: User = Depends(current_user), db: Session = Depends(request_db)
+) -> SubscriptionOut:
+    """Unsubscribe on YouTube, turn the channel's archive rule off and drop its queued downloads.
+
+    Videos already archived stay in the library.
+    """
+    sub, _, _ = _get_sub(db, user, channel_id)
+    if not sub.active:
+        raise ApiError(409, "not_subscribed", "you are no longer subscribed to this channel")
+
+    def _do(yt) -> bool:  # type: ignore[no-untyped-def]
+        sid = yt.subscription_id(channel_id)
+        if sid:
+            yt.delete_subscription(sid)
+        return sid is not None
+
+    removed_upstream = call_youtube(user.id, _do)
+    with write_session() as w:
+        sub, ch, rule = _get_sub(w, user, channel_id)
+        sub.active = False
+        if rule is not None and rule.mode != ArchiveMode.off:
+            rule = apply_rule_patch(w, user.id, channel_id, ChannelRulePatch(mode="off"))
+        audit(
+            w,
+            "subscription.unsubscribe",
+            user.id,
+            {"channel_id": channel_id, "removed_on_youtube": removed_upstream},
+            client_ip(request),
+        )
+        w.flush()
+        return _sub_out(sub, ch, rule, _counts(w, user.id, [channel_id])[channel_id])

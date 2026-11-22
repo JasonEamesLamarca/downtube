@@ -56,6 +56,7 @@ class Me(ApiModel):
     acknowledged_terms: bool
     account_status: Literal["active", "reauth_required", "disconnected"]
     youtube_channel_id: str | None
+    can_manage_youtube: bool = False  # optional permission for unsubscribe / remove like was granted
     csrf_token: str  # send back as X-CSRF-Token on every mutating request
 
 
@@ -235,6 +236,25 @@ class MediaFileOut(ApiModel):
     sources: list[SourceT]
 
 
+class DeleteVideoRequest(ApiModel):
+    # Also remove the like on YouTube when the video is liked (needs the manage permission).
+    remove_like: bool = True
+
+
+class DeleteVideoResult(ApiModel):
+    video_id: str
+    deleted_files: list[str]  # paths relative to the archive root
+    like_removed: bool
+    excluded: bool  # never downloaded again for this user (until requested manually)
+    warnings: list[str]
+
+
+class SidecarResult(ApiModel):
+    written: int
+    skipped: int
+    failed: int
+
+
 class LikesSyncRequest(ApiModel):
     full: bool = False  # full reconciliation instead of incremental poll
 
@@ -314,6 +334,7 @@ class SettingsOut(ApiModel):
     large_channel_threshold: int = Field(ge=1)  # videos; above this, confirmation required
     write_thumbnails: bool
     write_nfo: bool
+    embed_metadata: bool  # title/description/date tags inside the MP4 (stream copy, no re-encode)
     keep_superseded_copies: bool  # on upgrade: keep old file renamed *.superseded instead of deleting
     quota_daily_budget: int = Field(ge=100, le=1_000_000)
     timezone: str
@@ -343,6 +364,7 @@ class SettingsUpdate(ApiModel):
     large_channel_threshold: int | None = Field(default=None, ge=1)
     write_thumbnails: bool | None = None
     write_nfo: bool | None = None
+    embed_metadata: bool | None = None
     keep_superseded_copies: bool | None = None
     quota_daily_budget: int | None = Field(default=None, ge=100, le=1_000_000)
     timezone: str | None = None

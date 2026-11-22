@@ -43,7 +43,11 @@ Your YouTube watch history is not accessed. The app does not use the search API.
 | `openid` | Sign-in identity |
 | `email` | Identify your account and check the allowlist |
 | `profile` | Display name and picture in the UI |
-| `https://www.googleapis.com/auth/youtube.readonly` | Read your subscriptions and liked videos. DownTube never writes to your YouTube account. |
+| `https://www.googleapis.com/auth/youtube.readonly` | Read your subscriptions and liked videos. |
+| `https://www.googleapis.com/auth/youtube.force-ssl` | **Optional, only if you grant it** (Settings → Account & connection). Lets DownTube unsubscribe you from a channel and remove a like when you ask it to. DownTube makes these changes only after you confirm them in the app, and never on its own. |
+
+Without the optional permission, DownTube only reads your YouTube account. You can withdraw it at
+any time from <https://myaccount.google.com/permissions>; the read-only features keep working.
 
 ## Retention of YouTube API data
 
@@ -81,10 +85,14 @@ account is marked as needing reconnection, and syncs pause until you sign in aga
 
 ### Delete archived files
 
-Archived media is stored as ordinary files in your archive folder. Delete them with your
-file manager or media server. DownTube never deletes archive files on its own, except for
-superseded copies created during a quality upgrade, which you can disable (see the
-`keep_superseded_copies` setting in [docs/installation.md](docs/installation.md)).
+Delete a video from the **Library** page: DownTube removes the video file, its thumbnail, its
+`.nfo` file and any kept older copy, and records that you do not want the video again. Archived
+media is also stored as ordinary files in your archive folder, so you can delete them with your
+file manager or media server too (DownTube may then download them again if a rule still wants them).
+
+DownTube never deletes archive files on its own. The only automatic deletion is of superseded
+copies after a quality upgrade, which you can switch off (see the `keep_superseded_copies` setting
+in [docs/installation.md](docs/installation.md)).
 
 ## Backups
 

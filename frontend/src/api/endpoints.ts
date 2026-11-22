@@ -15,6 +15,7 @@ export const endpoints = {
   estimate: (id: string) => api<T.ChannelEstimate>(`/subscriptions/${id}/estimate`),
   patchRule: (id: string, p: T.ChannelRulePatch) =>
     api<T.SubscriptionOut>(`/subscriptions/${id}/rule`, { method: 'PATCH', body: p }),
+  unsubscribe: (id: string) => api<T.SubscriptionOut>(`/subscriptions/${id}/unsubscribe`, { method: 'POST' }),
   bulk: (b: T.BulkRuleRequest) => api<T.BulkResult>('/subscriptions/bulk', { method: 'POST', body: b }),
   likes: (q: Q) => api<T.Page<T.VideoOut>>('/likes', { query: q }),
   syncLikes: (full: boolean) => api<T.SyncRunOut>('/likes/sync', { method: 'POST', body: { full } }),
@@ -25,6 +26,9 @@ export const endpoints = {
   jobAction: (id: number, a: 'retry' | 'cancel' | 'pause' | 'resume') =>
     api<T.JobOut>(`/downloads/${id}/${a}`, { method: 'POST' }),
   library: (q: Q) => api<T.Page<T.MediaFileOut>>('/library', { query: q }),
+  deleteVideo: (id: string, b: T.DeleteVideoRequest) =>
+    api<T.DeleteVideoResult>(`/library/${id}/delete`, { method: 'POST', body: b }),
+  writeSidecars: (overwrite = false) => api<T.SidecarResult>('/library/sidecars', { method: 'POST', query: { overwrite } }),
   settings: () => api<T.SettingsOut>('/settings'),
   updateSettings: (u: T.SettingsUpdate) => api<T.SettingsOut>('/settings', { method: 'PUT', body: u }),
   storage: () => api<T.StorageInfo>('/storage'),
