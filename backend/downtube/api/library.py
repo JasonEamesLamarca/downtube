@@ -123,7 +123,7 @@ def library(
         "date": Video.published_at,
         "title": func.lower(Video.title),
         "size": MediaFile.size_bytes,
-        "height": MediaFile.height,
+        "height": func.min(MediaFile.width, MediaFile.height),  # short side (vertical videos)
     }[sort]
     total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
     rows = db.execute(

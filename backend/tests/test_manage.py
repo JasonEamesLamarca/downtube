@@ -274,3 +274,20 @@ def test_library_channels_lists_every_archived_channel(client, env):
     assert chans[0] == {"channel_id": "UC005", "title": "alpha lower-case", "count": 1}
     assert {c["channel_id"]: c["count"] for c in chans}["UC000"] == 2
     assert "UCzz" not in {c["channel_id"] for c in chans}  # other users' archives stay private
+
+
+def test_vertical_videos_use_short_side_for_height(client, env):
+    from downtube.models import MediaFile
+
+    h = login(client)
+    seed_video(h.user_id, "vert0000001", archived_file=(env["archive"], "x/v.mp4"))
+    seed_video(h.user_id, "wide0000001", archived_file=(env["archive"], "x/w.mp4"))
+    with write_session() as s:
+        mf = s.scalar(select(MediaFile).where(MediaFile.video_id == "vert0000001"))
+        mf.width, mf.height = 1080, 1920
+        mf2 = s.scalar(select(MediaFile).where(MediaFile.video_id == "wide0000001"))
+        mf2.width, mf2.height = 2560, 1440
+    likes = {v["video_id"]: v["archived_height"] for v in client.get("/api/likes", headers=h).json()["items"]}
+    assert likes == {"vert0000001": 1080, "wide0000001": 1440}
+    order = client.get("/api/library?sort=height&order=desc", headers=h).json()["items"]
+    assert [m["video_id"] for m in order] == ["wide0000001", "vert0000001"]

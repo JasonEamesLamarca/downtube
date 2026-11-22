@@ -221,7 +221,7 @@ What the script does:
   (so the next deploy keeps it) and run the script again.
 - **Prints the setup code** if setup is still needed, together with the `/setup` address.
 
-To upgrade later, set the image tag (for example `:0.4.2`) in your compose file and run the script again.
+To upgrade later, set the image tag (for example `:0.4.3`) in your compose file and run the script again.
 Existing `.env` values and the database are kept.
 
 ## Troubleshooting

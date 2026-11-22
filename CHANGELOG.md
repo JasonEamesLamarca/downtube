@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-11-22
+
+### Fixed
+- **Library list view:** the thumbnail took the whole row, so titles and channels disappeared and the
+  details wrapped one word per line. Rows now show thumbnail, title, channel, details and path, with
+  the buttons on the right.
+- **Vertical videos** (Shorts and other portrait videos) were labelled by their long side (for example
+  "1920p" for a 1080×1920 file). The library, the likes "Archived" column and sorting by resolution
+  now use the short side, like the resolution limits.
+
 ## [0.4.2] - 2026-11-22
 
 ### Fixed

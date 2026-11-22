@@ -16,7 +16,7 @@ const {
 
 const REPO = path.resolve(__dirname, "..", "..");
 const IMG = (p) => path.join(REPO, "docs", "images", p);
-const VERSION = "0.4.2";
+const VERSION = "0.4.3";
 const DATE = "November 2026";
 
 const FONT = "Calibri";

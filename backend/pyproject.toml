@@ -1,6 +1,6 @@
 [project]
 name = "downtube"
-version = "0.4.2"
+version = "0.4.3"
 description = "Self-hosted YouTube archiving platform (likes + subscriptions, original quality up to 4K, MP4)"
 license = { text = "MIT" }
 requires-python = ">=3.12"
