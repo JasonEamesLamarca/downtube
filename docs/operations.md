@@ -167,9 +167,19 @@ YouTube only shows to a signed-in account (age-restricted, members-only) therefo
 1. **Downloads → Failed → Download myself** on the video. The dialog links to the video on YouTube
    and shows a yt-dlp command for your own computer. It reads your browser's sign-in locally
    (`--cookies-from-browser`), keeps the original streams up to the job's resolution limit, merges
-   to MP4 without re-encoding, embeds the metadata and puts the video ID in the file name. You need
-   [yt-dlp](https://github.com/yt-dlp/yt-dlp#installation) and ffmpeg on that computer. On Windows,
-   yt-dlp usually cannot read Chrome or Edge cookies; use Firefox.
+   to MP4 without re-encoding, embeds the metadata and puts the video ID in the file name. Pick the
+   browser you are signed in with and, on Linux, the keyring; the dialog remembers your choices.
+
+   **Setting up your computer:** install [yt-dlp](https://github.com/yt-dlp/yt-dlp#installation)
+   (keep it current with `yt-dlp -U`), ffmpeg, and a JavaScript runtime for YouTube: Deno, or choose
+   *node* in the dialog if you have Node.js. Common errors:
+
+   | yt-dlp says | Fix |
+   |---|---|
+   | `cannot decrypt v11 cookies: no key found` (Linux) | yt-dlp did not recognise the desktop (for example COSMIC). Choose the keyring: *gnomekeyring* (GNOME, COSMIC, most others) or *kwallet6*/*kwallet5* (KDE). On Debian, Ubuntu and Pop!_OS also install `python3-secretstorage`. |
+   | `could not find chrome cookies database` | Wrong browser, for example Chromium rather than Chrome. |
+   | `Sign in to confirm your age` | No usable cookies were read. Check the two rows above and that the video plays in that browser while signed in. |
+   | Cookie database locked / cannot read cookies (Windows) | yt-dlp usually cannot read Chrome or Edge cookies on Windows; use Firefox, and close the browser first. |
 2. Give DownTube the file, either way:
    - **Upload** it in the same dialog; or
    - copy it into the **import folder**, `<archive root>/.import` (on Synology, for example

@@ -16,7 +16,7 @@ const {
 
 const REPO = path.resolve(__dirname, "..", "..");
 const IMG = (p) => path.join(REPO, "docs", "images", p);
-const VERSION = "0.4.0";
+const VERSION = "0.4.1";
 const DATE = "November 2026";
 
 const FONT = "Calibri";
@@ -278,7 +278,7 @@ IMAGE("screenshots/likes.png", "Liked videos: everything DownTube has seen in yo
 H2("Downloads");
 IMAGE("screenshots/downloads.png", "Downloads: live progress, speed and ETA; pause, cancel and retry; a link to each video on YouTube; archive a single video by URL; the import folder.");
 H3("Age-restricted and other sign-in-only videos");
-P("DownTube downloads without signing in to YouTube and never receives your YouTube cookies. Videos that YouTube only shows to a signed-in account (age-restricted, members-only) therefore fail with `age_restricted`, `login_required` or `members_only`. **Download myself** on such a job opens a dialog with a link to the video and a ready-made yt-dlp command for your own computer. The command reads your browser's sign-in locally, keeps the original streams up to the job's resolution limit, merges them to MP4 without re-encoding, embeds the metadata and puts the video ID in the file name. You need yt-dlp and ffmpeg on that computer; on Windows use Firefox, because yt-dlp usually cannot read Chrome or Edge cookies there.");
+P("DownTube downloads without signing in to YouTube and never receives your YouTube cookies. Videos that YouTube only shows to a signed-in account (age-restricted, members-only) therefore fail with `age_restricted`, `login_required` or `members_only`. **Download myself** on such a job opens a dialog with a link to the video and a ready-made yt-dlp command for your own computer. The command reads your browser's sign-in locally, keeps the original streams up to the job's resolution limit, merges them to MP4 without re-encoding, embeds the metadata and puts the video ID in the file name. Pick the browser you are signed in with and, on Linux, the keyring (choose gnomekeyring on GNOME or COSMIC, kwallet on KDE, if yt-dlp reports \"cannot decrypt v11 cookies\"); the dialog remembers your choices. You need yt-dlp (update it with `yt-dlp -U`), ffmpeg and a JavaScript runtime (Deno, or Node.js selected in the dialog) on that computer; on Debian-based Linux also `python3-secretstorage`. On Windows use Firefox, because yt-dlp usually cannot read Chrome or Edge cookies there.");
 P("Then either **upload** the file in the same dialog, or copy it into the **import folder** `<archive>/.import` (on the NAS, for example `/volume1/video/DownTube/.import`). DownTube scans that folder every 5 minutes, or straight away with **Scan now**; the file name must contain the video ID in brackets, such as `Title [dQw4w9WgXcQ].mp4`. Before archiving, DownTube checks that the file is MP4 or MKV/WebM, that it lasts as long as the YouTube video, that any embedded metadata names the same video, and that it does not exceed the resolution limit. A file that passes is moved into the channel folder with the usual name, thumbnail and `.nfo`, and the job is marked completed; a file that fails stays where it is, with the reason listed under Import folder.");
 IMAGE("screenshots/download-myself.png", "Download myself: a link to the video, the yt-dlp command for your own computer, and the upload.");
 H2("Library");
