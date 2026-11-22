@@ -74,7 +74,7 @@ def video_states(s: Session, user_id: int, video_ids: list[str]) -> dict[str, Vi
         dates = [x.discovered_at for x in mine]
         st.discovered_at = min(dates) if dates else None
         mf = media.get(vid)
-        st.archived_height = mf.height if mf else None
+        st.archived_height = min(mf.width, mf.height) if mf else None  # short side, like the caps
         st.best_available_height = mf.best_available_height if mf else None
         if vid in active:
             st.job_id = active[vid].id

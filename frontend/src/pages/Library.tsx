@@ -94,16 +94,16 @@ export default function LibraryPage() {
           <ul className={view === 'grid' ? 'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'space-y-2'}>
             {list.data.items.map((m) => (
               <li key={m.id} className={`card p-3 ${view === 'list' ? 'flex items-center gap-3' : ''}`}>
-                <button className="block w-full text-left" onClick={() => setSel(m)} aria-label={`Details for ${m.title ?? m.video_id}`}>
-                  <Thumb src={m.thumbnail_url} className={view === 'grid' ? 'aspect-video w-full' : 'h-12 w-20'} />
+                <button className={view === 'grid' ? 'block w-full text-left' : 'shrink-0'} onClick={() => setSel(m)} aria-label={`Details for ${m.title ?? m.video_id}`}>
+                  <Thumb src={m.thumbnail_url} className={view === 'grid' ? 'aspect-video w-full' : 'h-16 w-28'} />
                 </button>
-                <div className="mt-2 min-w-0 flex-1 text-sm">
+                <div className={`min-w-0 text-sm ${view === 'grid' ? 'mt-2' : 'flex-1'}`}>
                   <p className="truncate font-medium">{m.title ?? m.video_id}</p>
                   <p className="truncate text-slate-500">{m.channel_title}</p>
-                  <p className="text-xs text-slate-500">{heightLabel(m.height)}{m.is_hdr ? ' HDR' : ''} · {m.vcodec ?? '?'} · {m.container} · {formatBytes(m.size_bytes)} · {formatDate(m.created_at)}</p>
+                  <p className="text-xs text-slate-500">{heightLabel(Math.min(m.width, m.height))}{m.is_hdr ? ' HDR' : ''} · {m.vcodec ?? '?'} · {m.container} · {formatBytes(m.size_bytes)} · {formatDate(m.created_at)}</p>
                   <p className="truncate text-xs text-slate-400" title={m.rel_path}>{m.rel_path}</p>
                 </div>
-                <div className="mt-2 flex gap-1">
+                <div className={`flex gap-1 ${view === 'grid' ? 'mt-2' : 'shrink-0'}`}>
                   <a className="btn px-2" href={m.url} target="_blank" rel="noreferrer" aria-label={`Open ${m.title ?? m.video_id} on YouTube`}><ExternalLink size={14} /></a>
                   <button className="btn px-2" onClick={() => setToDelete(m)} aria-label={`Delete ${m.title ?? m.video_id}`}><Trash2 size={14} /></button>
                 </div>

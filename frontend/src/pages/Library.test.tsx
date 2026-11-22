@@ -82,4 +82,16 @@ describe('LibraryPage delete', () => {
     await user.selectOptions(select, 'UCz');
     await waitFor(() => expect(seen).toContain('UCz'));
   });
+
+  it('labels vertical videos by their short side and keeps the title in list view', async () => {
+    server.use(channels, http.get('/api/library', library([item({ title: 'Vertical Short', width: 1080, height: 1920, vcodec: 'vp9' })])));
+    const user = userEvent.setup();
+    renderPage(<LibraryPage />);
+    expect(await screen.findByText(/^1080p · vp9/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'List' }));
+    const title = screen.getByText('Vertical Short');
+    expect(title.closest('div')?.className).toContain('flex-1');
+    expect(screen.getByRole('button', { name: 'Details for Vertical Short' }).className).toContain('shrink-0');
+  });
 });
+
