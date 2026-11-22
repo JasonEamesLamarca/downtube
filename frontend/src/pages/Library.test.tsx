@@ -14,13 +14,17 @@ const item = (over: Partial<MediaFileOut> = {}): MediaFileOut => ({
   max_height_requested: 2160, created_at: '2026-01-01T00:00:00Z', sources: ['like'], ...over,
 });
 
+const channels = http.get('/api/library/channels', () => HttpResponse.json([
+  { channel_id: 'UCa', title: 'Alpha Channel', count: 3 },
+  { channel_id: 'UCz', title: 'Zulu Channel', count: 1 },
+]));
 const library = (items: MediaFileOut[]) => () => HttpResponse.json({ items, total: items.length, page: 1, page_size: 24 });
 
 describe('LibraryPage delete', () => {
   it('deletes a liked video and removes the like when permitted', async () => {
     const bodies: unknown[] = [];
     server.use(
-      http.get('/api/library', library([item()])),
+      channels, http.get('/api/library', library([item()])),
       http.post('/api/library/dQw4w9WgXcQ/delete', async ({ request }) => {
         bodies.push(await request.json());
         return HttpResponse.json({ video_id: 'dQw4w9WgXcQ', deleted_files: ['Chan/x.mp4', 'Chan/x.nfo'], like_removed: true, excluded: true, warnings: [] });
@@ -39,7 +43,7 @@ describe('LibraryPage delete', () => {
   it('keeps the like and offers the permission when it is missing', async () => {
     const bodies: unknown[] = [];
     server.use(
-      http.get('/api/library', library([item()])),
+      channels, http.get('/api/library', library([item()])),
       http.post('/api/library/dQw4w9WgXcQ/delete', async ({ request }) => {
         bodies.push(await request.json());
         return HttpResponse.json({ video_id: 'dQw4w9WgXcQ', deleted_files: ['Chan/x.mp4'], like_removed: false, excluded: true, warnings: ['the video is still liked on YouTube'] });
@@ -55,12 +59,27 @@ describe('LibraryPage delete', () => {
   });
 
   it('explains that channel videos will not be downloaded again', async () => {
-    server.use(http.get('/api/library', library([item({ title: 'Channel Video', sources: ['subscription'] })])));
+    server.use(channels, http.get('/api/library', library([item({ title: 'Channel Video', sources: ['subscription'] })])));
     const user = userEvent.setup();
     renderPage(<LibraryPage />);
     await user.click(await screen.findByRole('button', { name: 'Delete Channel Video' }));
     const dialog = screen.getByRole('dialog', { name: /delete from library/i });
     expect(dialog).toHaveTextContent('even though its channel is archived');
     expect(screen.queryByRole('checkbox', { name: /remove the like/i })).not.toBeInTheDocument();
+  });
+
+  it('lists every library channel in the filter and filters by it', async () => {
+    const seen: (string | null)[] = [];
+    server.use(channels, http.get('/api/library', ({ request }) => {
+      seen.push(new URL(request.url).searchParams.get('channel_id'));
+      return HttpResponse.json({ items: [item()], total: 1, page: 1, page_size: 24 });
+    }));
+    const user = userEvent.setup();
+    renderPage(<LibraryPage />);
+    const select = await screen.findByLabelText('Channel');
+    await screen.findByRole('option', { name: 'Zulu Channel (1)' });
+    expect([...(select as HTMLSelectElement).options].map((o) => o.textContent)).toEqual(['All channels', 'Alpha Channel (3)', 'Zulu Channel (1)']);
+    await user.selectOptions(select, 'UCz');
+    await waitFor(() => expect(seen).toContain('UCz'));
   });
 });

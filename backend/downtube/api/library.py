@@ -32,7 +32,14 @@ from downtube.models import (
     VideoExclusion,
     VideoSource,
 )
-from downtube.schemas import DeleteVideoRequest, DeleteVideoResult, MediaFileOut, Page, SidecarResult
+from downtube.schemas import (
+    DeleteVideoRequest,
+    DeleteVideoResult,
+    LibraryChannelOut,
+    MediaFileOut,
+    Page,
+    SidecarResult,
+)
 from downtube.storage import paths
 
 log = logging.getLogger("downtube.api")
@@ -69,6 +76,25 @@ def _current_for_user(db: Session, user: User, video_id: str) -> MediaFile:
     if mf is None:
         raise ApiError(404, "not_found", "no archived file for this video")
     return mf
+
+
+@router.get("/library/channels", response_model=list[LibraryChannelOut])
+def library_channels(user: User = Depends(current_user), db: Session = Depends(request_db)) -> list[LibraryChannelOut]:
+    """Every channel with at least one archived video in the user's library (for the channel filter)."""
+    title = func.coalesce(func.max(Channel.title), func.max(Video.channel_title), Video.channel_id)
+    rows = db.execute(
+        select(Video.channel_id, title, func.count(MediaFile.id))
+        .join(MediaFile, MediaFile.video_id == Video.id)
+        .outerjoin(Channel, Channel.id == Video.channel_id)
+        .where(
+            MediaFile.is_current.is_(True),
+            MediaFile.video_id.in_(user_video_ids(user.id)),
+            Video.channel_id.is_not(None),
+        )
+        .group_by(Video.channel_id)
+    ).all()
+    out = [LibraryChannelOut(channel_id=cid, title=t or cid, count=n) for cid, t, n in rows]
+    return sorted(out, key=lambda c: (c.title.casefold(), c.channel_id))
 
 
 @router.get("/library", response_model=Page[MediaFileOut])

@@ -59,9 +59,7 @@ export default function LibraryPage() {
     queryFn: () => endpoints.library({ q, channel_id: channel, sort, order, page, page_size: 24 }),
     placeholderData: (p) => p,
   });
-  const channels = useQuery({ queryKey: ['library-channels'], queryFn: () => endpoints.library({ page_size: 100, sort: 'title' }), staleTime: 60_000 });
-  const channelOpts = new Map<string, string>();
-  (channels.data?.items ?? []).forEach((m) => m.channel_id && channelOpts.set(m.channel_id, m.channel_title ?? m.channel_id));
+  const channels = useQuery({ queryKey: ['library-channels'], queryFn: endpoints.libraryChannels, staleTime: 60_000 });
 
   return (
     <div>
@@ -77,7 +75,7 @@ export default function LibraryPage() {
         <label className="sr-only" htmlFor="lib-ch">Channel</label>
         <select id="lib-ch" className="input" value={channel} onChange={(e) => { setChannel(e.target.value); setPage(1); }}>
           <option value="">All channels</option>
-          {[...channelOpts].map(([id, t]) => <option key={id} value={id}>{t}</option>)}
+          {(channels.data ?? []).map((c) => <option key={c.channel_id} value={c.channel_id}>{c.title} ({c.count})</option>)}
         </select>
         <label className="sr-only" htmlFor="lib-sort">Sort by</label>
         <select id="lib-sort" className="input" value={sort} onChange={(e) => setSort(e.target.value)}>
@@ -143,6 +141,7 @@ export default function LibraryPage() {
           if (r.like_removed) parts.push('removed the like on YouTube');
           setNotice(`${parts.join(' and ')}. ${r.warnings.join(' ')}`.trim());
           qc.invalidateQueries({ queryKey: ['library'] });
+          qc.invalidateQueries({ queryKey: ['library-channels'] });
           qc.invalidateQueries({ queryKey: ['dashboard'] });
         }} />
       )}

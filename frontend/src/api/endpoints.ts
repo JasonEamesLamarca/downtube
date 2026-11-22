@@ -28,6 +28,7 @@ export const endpoints = {
   library: (q: Q) => api<T.Page<T.MediaFileOut>>('/library', { query: q }),
   deleteVideo: (id: string, b: T.DeleteVideoRequest) =>
     api<T.DeleteVideoResult>(`/library/${id}/delete`, { method: 'POST', body: b }),
+  libraryChannels: () => api<T.LibraryChannelOut[]>('/library/channels'),
   importFolder: () => api<T.ImportFolderOut>('/imports'),
   scanImports: () => api<T.ImportFolderOut>('/imports/scan', { method: 'POST' }),
   uploadImport: (jobId: number, file: File, onProgress?: (pct: number) => void, signal?: AbortSignal) =>

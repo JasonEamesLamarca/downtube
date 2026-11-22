@@ -305,3 +305,9 @@ export interface ImportFolderOut {
   path: string;
   files: ImportFileOut[];
 }
+
+export interface LibraryChannelOut {
+  channel_id: string;
+  title: string;
+  count: number;
+}

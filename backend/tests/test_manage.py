@@ -247,3 +247,30 @@ def test_new_defaults_write_nfo_and_embed_metadata(client):
     h = login(client)
     st = client.get("/api/settings", headers=h).json()
     assert st["write_nfo"] is True and st["embed_metadata"] is True
+
+
+# --------------------------------------------------------------------------- library channel filter
+
+
+def test_library_channels_lists_every_archived_channel(client, env):
+    from downtube.models import Channel
+
+    h = login(client)
+    other = login(client, "second@example.com")
+    with write_session() as s:
+        for i in range(120):  # more videos than the old 100-item sample
+            s.add(Channel(id=f"UC{i:03d}", title=f"Chan {i:03d}"))
+    for i in range(120):
+        seed_video(h.user_id, f"lib{i:08d}", channel=f"UC{i:03d}", archived_file=(env["archive"], f"x/{i}.mp4"))
+    seed_video(h.user_id, "lib99999998", channel="UC000", archived_file=(env["archive"], "x/a.mp4"))
+    seed_video(h.user_id, "nofile00001", channel="UC119")  # not archived: no extra count
+    seed_video(other.user_id, "oth00000001", channel="UCzz", archived_file=(env["archive"], "x/o.mp4"))
+    with write_session() as s:
+        s.get(Channel, "UC005").title = "alpha lower-case"
+    r = client.get("/api/library/channels", headers=h)
+    assert r.status_code == 200, r.text
+    chans = r.json()
+    assert len(chans) == 120
+    assert chans[0] == {"channel_id": "UC005", "title": "alpha lower-case", "count": 1}
+    assert {c["channel_id"]: c["count"] for c in chans}["UC000"] == 2
+    assert "UCzz" not in {c["channel_id"] for c in chans}  # other users' archives stay private
