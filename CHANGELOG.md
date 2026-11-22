@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-22
+
+### Changed
+- **Download myself:** the yt-dlp command can name the Linux keyring (`chromium+gnomekeyring`,
+  `kwallet6`, …) for desktops yt-dlp does not recognise, such as COSMIC, and the JavaScript runtime
+  (`--js-runtimes node`/`bun` instead of Deno). Browser, keyring and runtime are remembered in the
+  browser. A "Setting up yt-dlp" section explains the requirements and the common cookie errors.
+
 ## [0.4.0] - 2026-11-22
 
 ### Added

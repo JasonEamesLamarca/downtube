@@ -4,7 +4,10 @@ import { Copy, ExternalLink, FolderInput, Upload } from 'lucide-react';
 import { endpoints } from '../api/endpoints';
 import type { JobOut } from '../api/types';
 import { formatBytes } from '../lib/format';
-import { BROWSERS, SIGN_IN_ERRORS, type Browser, youtubeUrl, ytDlpCommand } from '../lib/ytdlp';
+import {
+  BROWSERS, JS_RUNTIMES, KEYRINGS, SIGN_IN_ERRORS, loadOptions, saveOptions, usesKeyring, youtubeUrl, ytDlpCommand,
+  type Browser, type CommandOptions, type JsRuntime, type Keyring,
+} from '../lib/ytdlp';
 import { ErrorNote, Modal, ProgressBar } from './ui';
 
 export function YouTubeLink({ videoId, title }: { videoId: string; title: string }) {
@@ -27,11 +30,12 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 export function ImportDialog({ job, importPath, onClose }: { job: JobOut; importPath: string | null; onClose: () => void }) {
   const qc = useQueryClient();
   const name = job.title ?? job.video_id;
-  const [browser, setBrowser] = useState<Browser>('chrome');
+  const [opts, setOpts] = useState<CommandOptions>(loadOptions);
+  const setOpt = (patch: Partial<CommandOptions>) => { const next = { ...opts, ...patch }; setOpts(next); saveOptions(next); };
   const [file, setFile] = useState<File | null>(null);
   const [pct, setPct] = useState(0);
   const abort = useRef<AbortController | null>(null);
-  const cmd = ytDlpCommand(job.video_id, job.max_height, browser);
+  const cmd = ytDlpCommand(job.video_id, job.max_height, opts);
   const up = useMutation({
     mutationFn: (f: File) => {
       abort.current = new AbortController();
@@ -64,21 +68,35 @@ export function ImportDialog({ job, importPath, onClose }: { job: JobOut; import
         <li>
           <p>
             Run this <a className="underline" href="https://github.com/yt-dlp/yt-dlp#installation" target="_blank" rel="noopener noreferrer">yt-dlp</a> command
-            on that computer (ffmpeg must be installed). It reads your browser's sign-in locally and keeps the original
-            quality up to {job.max_height}p, without re-encoding.
+            on that computer. It reads your browser's sign-in locally and keeps the original quality up to {job.max_height}p,
+            without re-encoding. Pick the browser you are signed in with; your choices are remembered.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <label htmlFor="import-browser" className="text-sm">Browser</label>
-            <select id="import-browser" className="input" value={browser} onChange={(e) => setBrowser(e.target.value as Browser)}>
+            <select id="import-browser" className="input" value={opts.browser} onChange={(e) => setOpt({ browser: e.target.value as Browser })}>
               {BROWSERS.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+            <label htmlFor="import-keyring" className="text-sm">Keyring (Linux)</label>
+            <select id="import-keyring" className="input" value={opts.keyring} disabled={!usesKeyring(opts.browser)} onChange={(e) => setOpt({ keyring: e.target.value as Keyring })}>
+              {KEYRINGS.map((k) => <option key={k} value={k}>{k}</option>)}
+            </select>
+            <label htmlFor="import-js" className="text-sm">JavaScript runtime</label>
+            <select id="import-js" className="input" value={opts.js} onChange={(e) => setOpt({ js: e.target.value as JsRuntime })}>
+              {JS_RUNTIMES.map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
             <CopyButton text={cmd} label="Copy the yt-dlp command" />
           </div>
           <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-all rounded bg-slate-100 p-2 font-mono text-xs dark:bg-slate-900" aria-label="yt-dlp command">{cmd}</pre>
-          <p className="mt-1 text-xs text-slate-500">
-            On Windows, yt-dlp usually cannot read Chrome or Edge cookies; use Firefox there. Close the browser first if
-            yt-dlp says the cookie database is locked.
-          </p>
+          <details className="mt-1 text-xs text-slate-600 dark:text-slate-400">
+            <summary className="cursor-pointer">Setting up yt-dlp and fixing common errors</summary>
+            <ul className="mt-1 list-disc space-y-1 pl-5">
+              <li>You need <strong>yt-dlp</strong> (keep it current with <code>yt-dlp -U</code>), <strong>ffmpeg</strong>, and a JavaScript runtime for YouTube: <strong>Deno</strong>, or choose <em>node</em> above if you have Node.js.</li>
+              <li><code>cannot decrypt v11 cookies: no key found</code> (Linux): yt-dlp did not recognise your desktop. Choose the keyring: <em>gnomekeyring</em> on GNOME, COSMIC and most others, <em>kwallet6</em>/<em>kwallet5</em> on KDE. On Debian, Ubuntu and Pop!_OS also install <code>python3-secretstorage</code>.</li>
+              <li><code>could not find chrome cookies database</code>: that browser is not the one you use, for example Chromium rather than Chrome.</li>
+              <li><code>Sign in to confirm your age</code>: no usable cookies were read; check the two points above and that the video plays in that browser while signed in.</li>
+              <li>Windows: yt-dlp usually cannot read Chrome or Edge cookies; use Firefox. Close the browser if yt-dlp says the cookie database is locked.</li>
+            </ul>
+          </details>
         </li>
         <li>
           <p>Upload the file here{importPath ? <>, or copy it into <code className="break-all">{importPath}</code> (picked up within 5 minutes)</> : null}.</p>

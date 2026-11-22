@@ -69,6 +69,7 @@ describe('DownloadsPage', () => {
         return HttpResponse.json({ ...failed, status: 'completed', error_code: null, error_message: null, selection: { imported: true } });
       }),
     );
+    localStorage.clear();
     setCsrfToken('tok-123');
     const user = userEvent.setup();
     renderPage(<DownloadsPage />);
@@ -86,6 +87,12 @@ describe('DownloadsPage', () => {
     expect(cmd.textContent).toContain('"https://www.youtube.com/watch?v=dQw4w9WgXcQ"');
     await user.selectOptions(screen.getByLabelText('Browser'), 'firefox');
     expect(screen.getByLabelText('yt-dlp command').textContent).toContain('--cookies-from-browser firefox');
+    expect(screen.getByLabelText('Keyring (Linux)')).toBeDisabled();
+    await user.selectOptions(screen.getByLabelText('Browser'), 'chromium');
+    await user.selectOptions(screen.getByLabelText('Keyring (Linux)'), 'gnomekeyring');
+    await user.selectOptions(screen.getByLabelText('JavaScript runtime'), 'node');
+    expect(screen.getByLabelText('yt-dlp command').textContent).toContain('--cookies-from-browser chromium+gnomekeyring --js-runtimes node -S');
+    expect(JSON.parse(localStorage.getItem('downtube.ytdlp-options') ?? '{}')).toEqual({ browser: 'chromium', keyring: 'gnomekeyring', js: 'node' });
     expect(dialog.textContent).toContain('/volume1/video/DownTube/.import');
 
     const file = new File([new Uint8Array(2048)], 'Grown-up [dQw4w9WgXcQ].mp4', { type: 'video/mp4' });
