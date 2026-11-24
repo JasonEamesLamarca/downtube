@@ -16,6 +16,7 @@ export const endpoints = {
   patchRule: (id: string, p: T.ChannelRulePatch) =>
     api<T.SubscriptionOut>(`/subscriptions/${id}/rule`, { method: 'PATCH', body: p }),
   unsubscribe: (id: string) => api<T.SubscriptionOut>(`/subscriptions/${id}/unsubscribe`, { method: 'POST' }),
+  deleteSubscription: (id: string) => api<T.SubscriptionDeleteResult>(`/subscriptions/${id}/delete`, { method: 'POST' }),
   bulk: (b: T.BulkRuleRequest) => api<T.BulkResult>('/subscriptions/bulk', { method: 'POST', body: b }),
   likes: (q: Q) => api<T.Page<T.VideoOut>>('/likes', { query: q }),
   syncLikes: (full: boolean) => api<T.SyncRunOut>('/likes/sync', { method: 'POST', body: { full } }),
@@ -33,6 +34,7 @@ export const endpoints = {
   scanImports: () => api<T.ImportFolderOut>('/imports/scan', { method: 'POST' }),
   uploadImport: (jobId: number, file: File, onProgress?: (pct: number) => void, signal?: AbortSignal) =>
     uploadFile<T.JobOut>(`/downloads/${jobId}/import`, file, { query: { filename: file.name }, onProgress, signal }),
+  fetchReleaseDates: () => api<T.ReleaseDateResult>('/library/release-dates', { method: 'POST' }),
   writeSidecars: (overwrite = false) => api<T.SidecarResult>('/library/sidecars', { method: 'POST', query: { overwrite } }),
   settings: () => api<T.SettingsOut>('/settings'),
   updateSettings: (u: T.SettingsUpdate) => api<T.SettingsOut>('/settings', { method: 'PUT', body: u }),

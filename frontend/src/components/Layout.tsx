@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { Download, Heart, Library, LayoutDashboard, Menu, Settings, Users, X, AlertTriangle } from 'lucide-react';
 import { useMe } from '../auth';
+import { LogoMark } from './ui';
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -33,12 +34,12 @@ export function Layout() {
   return (
     <div className="min-h-screen md:flex">
       <aside className="hidden w-60 shrink-0 border-r border-slate-200 p-4 dark:border-slate-800 md:block">
-        <div className="mb-6 text-xl font-bold text-brand-600">DownTube</div>
+        <div className="mb-6 flex items-center gap-2 text-xl font-bold text-brand-600"><LogoMark size={32} />DownTube</div>
         <nav aria-label="Main"><NavList /></nav>
         <p className="mt-6 truncate text-xs text-slate-500" title={me.email}>{me.email}</p>
       </aside>
       <header className="flex items-center justify-between border-b border-slate-200 p-3 dark:border-slate-800 md:hidden">
-        <span className="text-lg font-bold text-brand-600">DownTube</span>
+        <span className="flex items-center gap-2 text-lg font-bold text-brand-600"><LogoMark size={28} />DownTube</span>
         <button className="btn" aria-expanded={open} aria-controls="mobile-nav" aria-label={open ? 'Close menu' : 'Open menu'} onClick={() => setOpen(!open)}>
           {open ? <X size={18} /> : <Menu size={18} />}
         </button>

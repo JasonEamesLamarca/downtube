@@ -216,13 +216,14 @@ Finalization: copy/move from temp to `<final>.downtube-partial` in the target di
 | POST `/auth/acknowledge` | → `Me` (records rights acknowledgement; required before any archiving) |
 | POST `/auth/disconnect` | `DisconnectRequest` → 204 |
 | GET `/dashboard` | → `Dashboard` |
-| GET `/subscriptions?q=&sort=title|archived|last_sync|video_count&order=asc|desc&mode=&status=&page=&page_size=` | → `Page[SubscriptionOut]` |
+| GET `/subscriptions?q=&sort=title|archived|last_sync|video_count&order=asc|desc&mode=&status=&subscribed=&page=&page_size=` | → `Page[SubscriptionOut]` |
 | POST `/subscriptions/sync` | → `SyncRunOut` (202) |
 | GET `/subscriptions/{channel_id}/estimate` | → `ChannelEstimate` |
 | PATCH `/subscriptions/{channel_id}/rule` | `ChannelRulePatch` → `SubscriptionOut` (409 `confirmation_required` + `ChannelEstimate` in message details when large) |
 | POST `/subscriptions/bulk` | `BulkRuleRequest` → `BulkResult` |
 | POST `/subscriptions/{channel_id}/sync` | → `SyncRunOut` (202) |
 | POST `/subscriptions/{channel_id}/unsubscribe` | → `SubscriptionOut`. Unsubscribes on YouTube (1 + 50 quota units), sets the rule to off, cancels queued jobs; archives kept. 403 `manage_permission_required`, 409 `not_subscribed` |
+| POST `/subscriptions/{channel_id}/delete` | → `SubscriptionDeleteResult`. Only for channels you are no longer subscribed to (409 `still_subscribed`): removes the subscription row, switches the channel rule off (kept, with its settings) and cancels its queued jobs; videos, sources and files are untouched. A later subscriptions sync that finds the channel again re-creates the row and the archived videos count again (by `Video.channel_id`) |
 | GET `/likes?q=&state=&page=&page_size=` | → `Page[VideoOut]` |
 | POST `/likes/sync` | `LikesSyncRequest` → `SyncRunOut` (202) |
 | POST `/likes/backfill` | `LikesBackfillRequest` → `{"queued": int}` |
@@ -233,7 +234,8 @@ Finalization: copy/move from temp to `<final>.downtube-partial` in the target di
 | PUT `/downloads/{id}/import?filename=` | raw file body → `JobOut` (completed). Validates (ffprobe container, duration ±2 %, embedded video ID, ≤ job cap) and archives the file; 404, 409 `already_archived` / `job_running`, 422 `invalid_file` / `wrong_video` / `duration_mismatch` / `too_large` / `unsupported_container` / `empty_upload`, 507 `disk_space` |
 | GET `/imports` | → `ImportFolderOut` (files waiting in `<archive_root>/.import`, last problem per file) |
 | POST `/imports/scan` | → `ImportFolderOut` (imports every stable file named `…[VIDEOID].ext`; also runs every 5 min) |
-| GET `/library?q=&channel_id=&sort=date|title|size|height&order=&page=&page_size=` | → `Page[MediaFileOut]` |
+| GET `/library?q=&channel_id=&sort=published|downloaded|title|size|height&order=&page=&page_size=` | → `Page[MediaFileOut]` (default `published` desc = release date; `date` = alias of `published`; unknown values last) |
+| POST `/library/release-dates` | → `ReleaseDateResult`: fills missing `Video.published_at` (videos.list, then the `date` tag in the archived file); also runs at startup + 300 s and daily 04:45 UTC |
 | GET `/library/channels` | → `list[LibraryChannelOut]` (`channel_id`, `title`, `count`): every channel with a current archive for the user, sorted by title |
 | GET `/library/{video_id}/stream` | video bytes (HTTP Range), only the DB-recorded file |
 | GET `/library/{video_id}/thumbnail` | jpeg if local thumbnail exists |

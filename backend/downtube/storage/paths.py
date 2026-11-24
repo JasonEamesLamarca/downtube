@@ -10,7 +10,7 @@ import os
 import re
 import shutil
 import unicodedata
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -140,3 +140,12 @@ def browse(path: str | None) -> BrowseResult:
     except PermissionError as e:
         raise StorageError("permission denied") from e
     return BrowseResult(path=str(target), parent=parent, mounts=[str(m) for m in mounts], entries=entries[:1000])
+
+
+def media_file_path(root_path: str, rel_path: str) -> Path:
+    """Absolute path of a recorded media file, verified to stay inside its root and the storage mounts."""
+    rel = PurePosixPath(rel_path)
+    if rel.is_absolute() or ".." in rel.parts or not rel.parts:
+        raise StorageError("invalid recorded path")
+    root = resolve_within_mounts(root_path)
+    return resolve_within_mounts(safe_join(root, *rel.parts))

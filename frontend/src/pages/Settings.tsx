@@ -139,6 +139,26 @@ function SidecarBackfill() {
   );
 }
 
+function ReleaseDateBackfill() {
+  const m = useMutation({ mutationFn: endpoints.fetchReleaseDates });
+  const d = m.data;
+  return (
+    <div className="text-sm">
+      <button className="btn" disabled={m.isPending} onClick={() => m.mutate()}>Fetch missing release dates</button>
+      <p className="mt-1 text-xs text-slate-500">Used to sort the library by release date. Runs automatically every day; asks YouTube first (1 quota unit per 50 videos), then reads the date embedded in archived files.</p>
+      {m.isPending && <Spinner label="Fetching release dates…" />}
+      {d && (
+        <p role="status" className="mt-1">
+          Found {d.from_youtube + d.from_files} release date(s) ({d.from_youtube} from YouTube, {d.from_files} from files).
+          {d.archived_missing ? ` ${d.archived_missing} archived video(s) still have no known release date.` : ' Every archived video has a release date.'}
+          {d.error ? ` YouTube lookup stopped: ${d.error}.` : ''}
+        </p>
+      )}
+      <ErrorNote error={m.error} />
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const me = useMe();
   const qc = useQueryClient();
@@ -279,6 +299,7 @@ export default function SettingsPage() {
           {check('write_nfo', 'Write the title and YouTube description (.nfo) next to each video', 'Read by Plex (Movie libraries with the Plex NFO agent), Jellyfin, Emby and Kodi.')}
           {check('embed_metadata', 'Store the title, description and date inside new MP4 files', 'Plex reads these tags in any library type. The video and audio are copied, never re-encoded.')}
           <SidecarBackfill />
+          <ReleaseDateBackfill />
         </Section>
 
         <Section title="API quota">

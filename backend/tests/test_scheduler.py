@@ -36,6 +36,7 @@ def test_start_stop_reschedule_and_health_flag(sched, client):
             "cleanup",
             "backup",
             "imports",
+            "release_dates",
         }
         assert scheduler._scheduler.get_job("likes_poll").trigger.interval == timedelta(minutes=15)
         # every job is scheduled; none is left paused (next_run_time None = paused)

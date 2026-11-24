@@ -1,4 +1,5 @@
 import { useSearchParams } from 'react-router-dom';
+import { LogoMark } from '../components/ui';
 
 const MESSAGES: Record<string, string> = {
   access_denied: 'Google sign-in was cancelled or denied.',
@@ -22,7 +23,7 @@ export function LoginPage({ setupComplete = false }: { setupComplete?: boolean }
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
       <div className="card w-full max-w-sm space-y-4 text-center">
-        <h1 className="text-3xl font-bold text-brand-600">DownTube</h1>
+        <h1 className="flex items-center justify-center gap-3 text-3xl font-bold text-brand-600"><LogoMark size={44} />DownTube</h1>
         <p className="text-sm text-slate-600 dark:text-slate-400">Self-hosted archive for your liked videos and subscriptions.</p>
         {setupComplete && (
           <p role="status" className="rounded-sm border border-green-300 bg-green-50 p-2 text-sm text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">

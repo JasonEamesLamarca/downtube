@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-24
+
+### Added
+- **Logo and browser icon:** a white "DT" on a red rounded square, shown in the sidebar, sign-in
+  and setup pages, as the browser tab icon (`favicon.ico` + `favicon.svg`), the Apple touch icon and
+  in a web app manifest (192/512 px and maskable icons). Regenerate with
+  `python3 tools/brand/make_icons.py` (needs Chromium).
+- **Delete a subscription** once you are unsubscribed (here or directly on YouTube):
+  `POST /api/subscriptions/{channel_id}/delete`. Only the subscription entry is removed: archived
+  videos stay in the library, the channel's archive settings are kept but switched off, and any
+  queued downloads of the channel are cancelled. If you subscribe again on YouTube, the next
+  subscriptions refresh brings the channel back and its archived videos are counted again.
+  Refused with 409 `still_subscribed` while you are subscribed.
+- **Subscription filter** on the Subscriptions page (all / subscribed / unsubscribed;
+  `GET /api/subscriptions?subscribed=`).
+- **Release dates in the library:** every item shows when it was released on YouTube and when it
+  was archived (`MediaFileOut.published_at`). Missing release dates are fetched at startup and every
+  day (YouTube API, 1 quota unit per 50 videos; for videos gone from YouTube, the date yt-dlp embedded
+  in the file), or on demand with **Settings → Fetch missing release dates**
+  (`POST /api/library/release-dates`).
+
+### Changed
+- Library sorting offers **Release date** (new default) and **Date downloaded** separately
+  (`sort=published|downloaded`; the old `sort=date` still means release date). Videos with an unknown
+  value are listed last in both directions.
+
+### Fixed
+- The library sort labelled "Date downloaded" actually sorted by release date, and the date shown
+  on each item was the archive date.
+
 ## [0.4.4] - 2026-11-22
 
 ### Changed

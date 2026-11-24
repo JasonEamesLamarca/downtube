@@ -45,7 +45,7 @@ export function DeleteVideoDialog({ item, onClose, onDone }: {
 export default function LibraryPage() {
   const [search, setSearch] = useState('');
   const [channel, setChannel] = useState('');
-  const [sort, setSort] = useState('date');
+  const [sort, setSort] = useState('published');
   const [order, setOrder] = useState('desc');
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [page, setPage] = useState(1);
@@ -79,7 +79,7 @@ export default function LibraryPage() {
         </select>
         <label className="sr-only" htmlFor="lib-sort">Sort by</label>
         <select id="lib-sort" className="input" value={sort} onChange={(e) => setSort(e.target.value)}>
-          <option value="date">Date downloaded</option><option value="title">Title</option><option value="size">Size</option><option value="height">Resolution</option>
+          <option value="published">Release date</option><option value="downloaded">Date downloaded</option><option value="title">Title</option><option value="size">Size</option><option value="height">Resolution</option>
         </select>
         <label className="sr-only" htmlFor="lib-order">Order</label>
         <select id="lib-order" className="input" value={order} onChange={(e) => setOrder(e.target.value)}>
@@ -100,7 +100,8 @@ export default function LibraryPage() {
                 <div className={`min-w-0 text-sm ${view === 'grid' ? 'mt-2' : 'flex-1'}`}>
                   <p className="truncate font-medium">{m.title ?? m.video_id}</p>
                   <p className="truncate text-slate-500">{m.channel_title}</p>
-                  <p className="text-xs text-slate-500">{heightLabel(Math.min(m.width, m.height))}{m.is_hdr ? ' HDR' : ''} · {m.vcodec ?? '?'} · {m.container} · {formatBytes(m.size_bytes)} · {formatDate(m.created_at)}</p>
+                  <p className="text-xs text-slate-500">{heightLabel(Math.min(m.width, m.height))}{m.is_hdr ? ' HDR' : ''} · {m.vcodec ?? '?'} · {m.container} · {formatBytes(m.size_bytes)}</p>
+                  <p className="text-xs text-slate-500"><span title="Released on YouTube">Released {formatDate(m.published_at)}</span> · <span title="Archived by DownTube">archived {formatDate(m.created_at)}</span></p>
                   <p className="truncate text-xs text-slate-400" title={m.rel_path}>{m.rel_path}</p>
                 </div>
                 <div className={`flex gap-1 ${view === 'grid' ? 'mt-2' : 'shrink-0'}`}>
@@ -120,6 +121,8 @@ export default function LibraryPage() {
           <p className="mt-2 text-xs text-slate-500">Some codecs (for example AV1, VP9 in MP4, or HEVC) or MKV files may not play in every browser. The file itself is unchanged; use a media player or Plex if playback fails.</p>
           <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
             <div><dt className="text-slate-500">Channel</dt><dd>{sel.channel_title ?? '—'}</dd></div>
+            <div><dt className="text-slate-500">Released</dt><dd>{formatDate(sel.published_at)}</dd></div>
+            <div><dt className="text-slate-500">Archived</dt><dd>{formatDate(sel.created_at)}</dd></div>
             <div><dt className="text-slate-500">Resolution</dt><dd>{sel.width}×{sel.height}{sel.fps ? ` @ ${sel.fps}fps` : ''}</dd></div>
             <div><dt className="text-slate-500">Codecs</dt><dd>{sel.vcodec ?? '?'} / {sel.acodec ?? '?'}</dd></div>
             <div><dt className="text-slate-500">Container</dt><dd>{sel.container}</dd></div>

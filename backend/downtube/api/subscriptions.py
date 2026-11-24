@@ -33,6 +33,7 @@ from downtube.schemas import (
     ChannelRuleOut,
     ChannelRulePatch,
     Page,
+    SubscriptionDeleteResult,
     SubscriptionOut,
     SyncRunOut,
 )
@@ -127,6 +128,7 @@ def list_subscriptions(
     order: Literal["asc", "desc"] = "asc",
     mode: Literal["off", "backfill_once", "backfill_and_follow", "follow_new"] | None = None,
     status: Literal["idle", "running", "ok", "error", "quota_deferred"] | None = None,
+    subscribed: bool | None = None,
     pp: PageParams = Depends(),
     user: User = Depends(current_user),
     db: Session = Depends(request_db),
@@ -154,6 +156,8 @@ def list_subscriptions(
         base = base.where(or_(ChannelRule.id.is_(None), cast(ChannelRule.mode, String) == "off"))
     elif mode:
         base = base.where(cast(ChannelRule.mode, String) == mode)
+    if subscribed is not None:
+        base = base.where(Subscription.active.is_(subscribed))
     if status == "idle":
         base = base.where(or_(ChannelRule.id.is_(None), cast(ChannelRule.sync_status, String) == "idle"))
     elif status:
@@ -283,3 +287,52 @@ def unsubscribe(
         )
         w.flush()
         return _sub_out(sub, ch, rule, _counts(w, user.id, [channel_id])[channel_id])
+
+
+@router.post("/subscriptions/{channel_id}/delete", response_model=SubscriptionDeleteResult)
+def delete_subscription(
+    channel_id: str, request: Request, user: User = Depends(current_user)
+) -> SubscriptionDeleteResult:
+    """Remove a channel you are no longer subscribed to from the Subscriptions list.
+
+    Only the subscription entry goes: archived videos, their discovery records and the channel's
+    archive settings (forced to off) stay. If you subscribe again, the next subscriptions sync
+    brings the channel back and its archived videos are counted again.
+    """
+    with write_session() as w:
+        sub, ch, rule = _get_sub(w, user, channel_id)
+        if sub.active:
+            raise ApiError(409, "still_subscribed", "unsubscribe from this channel before deleting it")
+        cancelled = 0
+        if rule is not None and rule.mode != ArchiveMode.off:
+            before = _active_job_count(w, user.id, channel_id)
+            apply_rule_patch(w, user.id, channel_id, ChannelRulePatch(mode="off"))
+            w.flush()
+            cancelled = before - _active_job_count(w, user.id, channel_id)
+        archived = _counts(w, user.id, [channel_id])[channel_id]["archived"]
+        w.delete(sub)
+        audit(
+            w,
+            "subscription.delete",
+            user.id,
+            {"channel_id": channel_id, "archived_kept": archived, "jobs_cancelled": cancelled},
+            client_ip(request),
+        )
+        return SubscriptionDeleteResult(
+            channel_id=channel_id, title=ch.title, archived_kept=archived, jobs_cancelled=cancelled
+        )
+
+
+def _active_job_count(db: Session, user_id: int, channel_id: str) -> int:
+    return (
+        db.scalar(
+            select(func.count(DownloadJob.id))
+            .join(Video, Video.id == DownloadJob.video_id)
+            .where(
+                Video.channel_id == channel_id,
+                Video.id.in_(user_video_ids(user_id)),
+                DownloadJob.status.in_((JobStatus.queued, JobStatus.paused)),
+            )
+        )
+        or 0
+    )
