@@ -6,6 +6,7 @@ import { endpoints } from '../api/endpoints';
 import type { SetupStatus } from '../api/types';
 import { AdminPicker, CopyField, EmailChips, GoogleInstructions, SecretInput } from '../components/GoogleConfig';
 import { fieldErrors } from '../lib/errors';
+import { LogoMark } from '../components/ui';
 
 export function SetupPage({ status, onComplete }: { status: SetupStatus; onComplete?: () => void }) {
   const uid = useId();
@@ -63,7 +64,7 @@ export function SetupPage({ status, onComplete }: { status: SetupStatus; onCompl
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
       <form onSubmit={submit} className="card w-full max-w-xl space-y-5" noValidate>
-        <h1 className="text-3xl font-bold text-brand-600">Set up DownTube</h1>
+        <h1 className="flex items-center gap-3 text-3xl font-bold text-brand-600"><LogoMark size={40} />Set up DownTube</h1>
 
         <section className="space-y-2" aria-label="Setup code step">
           <label htmlFor={`${uid}-code`} className="block text-sm font-medium">Setup code</label>

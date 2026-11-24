@@ -88,6 +88,12 @@ def job_metadata() -> None:
     refresh_stale_metadata(25)
 
 
+def job_release_dates() -> None:
+    from downtube.sync.release_dates import backfill_release_dates
+
+    backfill_release_dates()
+
+
 def job_cleanup() -> None:
     with write_session() as s:
         sessions, states = cleanup_expired(s)
@@ -158,6 +164,7 @@ def _triggers() -> dict[str, IntervalTrigger | CronTrigger]:
         "subscriptions": IntervalTrigger(hours=st.subscriptions_refresh_hours, timezone=UTC),
         "channels": IntervalTrigger(minutes=st.channel_poll_minutes, timezone=UTC),
         "metadata": CronTrigger(hour=4, minute=15, timezone=UTC),
+        "release_dates": CronTrigger(hour=4, minute=45, timezone=UTC),
         "cleanup": IntervalTrigger(hours=1, timezone=UTC),
         "backup": CronTrigger(hour=3, minute=30, timezone=UTC),
         "imports": IntervalTrigger(minutes=5, timezone=UTC),
@@ -170,12 +177,20 @@ _FUNCS = {
     "subscriptions": job_subscriptions,
     "channels": job_channels,
     "metadata": job_metadata,
+    "release_dates": job_release_dates,
     "cleanup": job_cleanup,
     "backup": backup_database,
     "imports": job_imports,
 }
 # First run shortly after start (seconds); the rest wait for their interval.
-_STARTUP_DELAY = {"subscriptions": 20, "likes_poll": 40, "channels": 120, "cleanup": 5, "imports": 90}
+_STARTUP_DELAY = {
+    "subscriptions": 20,
+    "likes_poll": 40,
+    "channels": 120,
+    "cleanup": 5,
+    "imports": 90,
+    "release_dates": 300,
+}
 
 
 def _mark_interrupted() -> None:

@@ -174,6 +174,13 @@ class SubscriptionOut(ApiModel):
     failed_count: int
 
 
+class SubscriptionDeleteResult(ApiModel):
+    channel_id: str
+    title: str
+    archived_kept: int  # archived videos of the channel that stay in the library
+    jobs_cancelled: int  # queued downloads dropped because the archive rule was still on
+
+
 class ChannelEstimate(ApiModel):
     channel_id: str
     video_count: int | None
@@ -232,7 +239,8 @@ class MediaFileOut(ApiModel):
     is_hdr: bool
     source_format_id: str | None
     max_height_requested: int | None
-    created_at: datetime
+    created_at: datetime  # when the file was archived
+    published_at: datetime | None  # YouTube release date (None until known)
     sources: list[SourceT]
 
 
@@ -253,6 +261,14 @@ class SidecarResult(ApiModel):
     written: int
     skipped: int
     failed: int
+
+
+class ReleaseDateResult(ApiModel):
+    checked: int  # videos without a release date that were looked up on YouTube
+    from_youtube: int
+    from_files: int  # taken from the date tag embedded in the archived file
+    archived_missing: int  # archived videos whose release date is still unknown
+    error: str | None = None  # why the YouTube lookup stopped early (quota, no account, ...)
 
 
 class LikesSyncRequest(ApiModel):

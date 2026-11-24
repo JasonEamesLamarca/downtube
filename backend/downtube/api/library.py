@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from datetime import UTC, datetime
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Request
@@ -22,9 +22,11 @@ from downtube.downloads.manager import write_nfo
 from downtube.main import ApiError
 from downtube.models import (
     ACTIVE_JOB_STATUSES,
+    AccountStatus,
     Channel,
     DiscoverySource,
     DownloadJob,
+    GoogleAccount,
     JobStatus,
     MediaFile,
     User,
@@ -38,9 +40,12 @@ from downtube.schemas import (
     LibraryChannelOut,
     MediaFileOut,
     Page,
+    ReleaseDateResult,
     SidecarResult,
 )
 from downtube.storage import paths
+from downtube.sync.release_dates import backfill_release_dates
+from downtube.youtube.client import YouTubeClient
 
 log = logging.getLogger("downtube.api")
 router = APIRouter(tags=["library"])
@@ -50,11 +55,7 @@ MEDIA_TYPES = {"mp4": "video/mp4", "mkv": "video/x-matroska", "webm": "video/web
 
 def media_path(mf: MediaFile) -> Path:
     """Absolute path of a recorded media file, verified to stay inside its root and the storage mounts."""
-    rel = PurePosixPath(mf.rel_path)
-    if rel.is_absolute() or ".." in rel.parts or not rel.parts:
-        raise paths.StorageError("invalid recorded path")
-    root = paths.resolve_within_mounts(mf.root_path)
-    return paths.resolve_within_mounts(paths.safe_join(root, *rel.parts))
+    return paths.media_file_path(mf.root_path, mf.rel_path)
 
 
 def _thumb_path(mf: MediaFile) -> Path | None:
@@ -101,7 +102,8 @@ def library_channels(user: User = Depends(current_user), db: Session = Depends(r
 def library(
     q: str | None = None,
     channel_id: str | None = None,
-    sort: Literal["date", "title", "size", "height"] = "date",
+    # "date" is the pre-0.5 name of "published" (release date), kept for compatibility.
+    sort: Literal["published", "downloaded", "date", "title", "size", "height"] = "published",
     order: Literal["asc", "desc"] = "desc",
     pp: PageParams = Depends(),
     user: User = Depends(current_user),
@@ -120,14 +122,19 @@ def library(
     if channel_id:
         base = base.where(Video.channel_id == channel_id)
     key = {
+        "published": Video.published_at,
         "date": Video.published_at,
+        "downloaded": MediaFile.created_at,
         "title": func.lower(Video.title),
         "size": MediaFile.size_bytes,
         "height": func.min(MediaFile.width, MediaFile.height),  # short side (vertical videos)
     }[sort]
     total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
     rows = db.execute(
-        base.order_by(key.desc() if order == "desc" else key.asc(), MediaFile.id).offset(pp.offset).limit(pp.page_size)
+        # Unknown values (e.g. a release date not fetched yet) always go last.
+        base.order_by(key.is_(None), key.desc() if order == "desc" else key.asc(), MediaFile.id)
+        .offset(pp.offset)
+        .limit(pp.page_size)
     ).all()
     states = video_states(db, user.id, [mf.video_id for mf, _ in rows])
     items = []
@@ -155,6 +162,7 @@ def library(
                 source_format_id=mf.source_format_id,
                 max_height_requested=mf.max_height_requested,
                 created_at=mf.created_at,
+                published_at=v.published_at,
                 sources=states[v.id].sources,  # type: ignore[arg-type]
             )
         )
@@ -324,6 +332,21 @@ def delete_video(
 
 
 # --------------------------------------------------------------------------- sidecars
+
+
+@router.post("/library/release-dates", response_model=ReleaseDateResult)
+def fetch_release_dates(user: User = Depends(current_user)) -> ReleaseDateResult:
+    """Look up missing release dates now (YouTube API, then the date embedded in archived files)."""
+    with read_session() as s:
+        account_id = s.scalar(
+            select(GoogleAccount.id)
+            .where(GoogleAccount.user_id == user.id, GoogleAccount.status == AccountStatus.active)
+            .order_by(GoogleAccount.id)
+        )
+    if account_id is None:
+        return backfill_release_dates()
+    with YouTubeClient(account_id) as yt:
+        return backfill_release_dates(client=yt)
 
 
 @router.post("/library/sidecars", response_model=SidecarResult)

@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Trash2 } from 'lucide-react';
 import { ApiError } from '../api/client';
 import { endpoints } from '../api/endpoints';
-import type { ArchiveMode, BulkResult, ChannelEstimate, ChannelRulePatch, ResolutionCap, SubscriptionOut } from '../api/types';
+import type { ArchiveMode, BulkResult, ChannelEstimate, ChannelRulePatch, ResolutionCap, SubscriptionDeleteResult, SubscriptionOut } from '../api/types';
 import { useMe } from '../auth';
 import { ManagePermissionNote } from '../components/ManagePermission';
 import { ErrorNote, Modal, PageHeader, Pagination, ResolutionNote, ResolutionSelect, Spinner, StateBadge, Thumb, useDebounced } from '../components/ui';
@@ -88,6 +88,25 @@ export function UnsubscribeDialog({ channel, onClose, onDone }: { channel: Subsc
   );
 }
 
+export function DeleteSubscriptionDialog({ channel, onClose, onDone }: {
+  channel: SubscriptionOut; onClose: () => void; onDone: (r: SubscriptionDeleteResult) => void;
+}) {
+  const m = useMutation({ mutationFn: () => endpoints.deleteSubscription(channel.channel_id), onSuccess: onDone });
+  const archiving = channel.rule.mode !== 'off';
+  return (
+    <Modal title={`Delete ${channel.title}?`} onClose={onClose}
+      footer={<>
+        <button className="btn" onClick={onClose}>Cancel</button>
+        <button className="btn btn-danger" disabled={m.isPending} onClick={() => m.mutate()}>Delete subscription</button>
+      </>}>
+      <p>This removes <strong>{channel.title}</strong> from your subscriptions list. Nothing is deleted from disk.</p>
+      <p>Videos already archived ({channel.archived_count}) stay in your library.{archiving ? ' Archiving for this channel is turned off and its queued downloads are cancelled.' : ''}</p>
+      <p>If you subscribe to the channel again on YouTube, it comes back at the next subscriptions refresh, together with the videos you already have.</p>
+      <ErrorNote error={m.error} />
+    </Modal>
+  );
+}
+
 export default function SubscriptionsPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
@@ -100,13 +119,16 @@ export default function SubscriptionsPage() {
   const [pending, setPending] = useState<PendingSingle | PendingBulk | null>(null);
   const [filtersFor, setFiltersFor] = useState<SubscriptionOut | null>(null);
   const [unsubFor, setUnsubFor] = useState<SubscriptionOut | null>(null);
+  const [deleteFor, setDeleteFor] = useState<SubscriptionOut | null>(null);
+  const [subscribed, setSubscribed] = useState('');
+  const [notice, setNotice] = useState<string | null>(null);
   const [bulkMode, setBulkMode] = useState<ArchiveMode | ''>('');
   const [bulkRes, setBulkRes] = useState<ResolutionCap | 'keep'>('keep');
   const q = useDebounced(search);
 
   const list = useQuery({
-    queryKey: ['subscriptions', q, sort, order, mode, status, page],
-    queryFn: () => endpoints.subscriptions({ q, sort, order, mode, status, page, page_size: 25 }),
+    queryKey: ['subscriptions', q, sort, order, mode, status, subscribed, page],
+    queryFn: () => endpoints.subscriptions({ q, sort, order, mode, status, subscribed, page, page_size: 25 }),
     placeholderData: (p) => p,
     refetchInterval: 10000,
   });
@@ -174,6 +196,10 @@ export default function SubscriptionsPage() {
           <option value="">All sync states</option>
           {['idle', 'running', 'ok', 'error', 'quota_deferred'].map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
         </select>
+        <label className="sr-only" htmlFor="sub-subscribed">Filter by subscription</label>
+        <select id="sub-subscribed" className="input" value={subscribed} onChange={(e) => { setSubscribed(e.target.value); setPage(1); }}>
+          <option value="">All subscriptions</option><option value="true">Subscribed</option><option value="false">Unsubscribed</option>
+        </select>
         <label className="sr-only" htmlFor="sub-sort">Sort by</label>
         <select id="sub-sort" className="input" value={sort} onChange={(e) => setSort(e.target.value)}>
           <option value="title">Title</option><option value="archived">Archived</option><option value="last_sync">Last sync</option><option value="video_count">Video count</option>
@@ -210,6 +236,7 @@ export default function SubscriptionsPage() {
         </div>
       )}
 
+      {notice && <p role="status" className="mb-2 text-sm text-green-700 dark:text-green-400">{notice}</p>}
       {list.isLoading && <Spinner />}
       <ErrorNote error={list.error ?? syncOne.error} />
       {list.data && (
@@ -243,7 +270,9 @@ export default function SubscriptionsPage() {
                     </label>
                     <button className="btn" onClick={() => setFiltersFor(c)} aria-label={`Filters for ${c.title}`}>Filters</button>
                     <button className="btn" disabled={syncOne.isPending} onClick={() => syncOne.mutate(c.channel_id)} aria-label={`Sync ${c.title} now`}>Sync now</button>
-                    {c.subscribed && <button className="btn btn-danger" onClick={() => setUnsubFor(c)} aria-label={`Unsubscribe from ${c.title}`}>Unsubscribe</button>}
+                    {c.subscribed
+                      ? <button className="btn btn-danger" onClick={() => setUnsubFor(c)} aria-label={`Unsubscribe from ${c.title}`}>Unsubscribe</button>
+                      : <button className="btn btn-danger" onClick={() => setDeleteFor(c)} aria-label={`Delete ${c.title}`}><Trash2 size={14} aria-hidden /> Delete</button>}
                   </div>
                 </div>
                 <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
@@ -262,6 +291,14 @@ export default function SubscriptionsPage() {
       {patch.error && !(patch.error instanceof ApiError && patch.error.code === 'confirmation_required') && !filtersFor && <ErrorNote error={patch.error} />}
 
       {unsubFor && <UnsubscribeDialog channel={unsubFor} onClose={() => setUnsubFor(null)} onDone={() => { setUnsubFor(null); refresh(); }} />}
+
+      {deleteFor && <DeleteSubscriptionDialog channel={deleteFor} onClose={() => setDeleteFor(null)} onDone={(r) => {
+        setDeleteFor(null);
+        setSelected((s) => { const n = new Set(s); n.delete(r.channel_id); return n; });
+        setNotice(`Deleted ${r.title}. ${r.archived_kept} archived video${r.archived_kept === 1 ? '' : 's'} kept in your library${r.jobs_cancelled ? `; ${r.jobs_cancelled} queued download${r.jobs_cancelled === 1 ? '' : 's'} cancelled` : ''}.`);
+        refresh();
+        qc.invalidateQueries({ queryKey: ['dashboard'] });
+      }} />}
 
       {filtersFor && (
         <FiltersDialog channel={filtersFor} onClose={() => setFiltersFor(null)} pending={patch.isPending} error={patch.error}

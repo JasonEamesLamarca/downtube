@@ -1,3 +1,5 @@
+<img src="frontend/public/favicon.svg" alt="" width="64" height="64" align="left">
+
 # DownTube
 
 DownTube is an open-source, self-hosted YouTube archiving app. It runs as a single Docker
@@ -44,6 +46,10 @@ interrupted downloads have been verified live. Current release: see the [CHANGEL
 - **Unsubscribe from the app.** Unsubscribing turns the channel's archiving off and keeps what is
   already archived. Removing likes and unsubscribing use an optional extra Google permission
   that you grant only if you want these actions; otherwise DownTube only reads your account.
+  Once unsubscribed, **delete** the channel from the Subscriptions list: its archived videos stay
+  in the library, and if you subscribe again it reappears with them.
+- **Sort by release date.** The library shows when each video was released and when it was
+  archived, and sorts by either; missing release dates are fetched automatically.
 - **Import what DownTube can't fetch.** Age-restricted and other sign-in-only videos fail in the
   queue. **Download myself** gives a ready-made yt-dlp command to run on your own computer, where
   you are signed in to YouTube, and you upload the file or copy it into the import folder

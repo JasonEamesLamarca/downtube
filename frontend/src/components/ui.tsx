@@ -154,3 +154,14 @@ const STATE_COLORS: Record<string, string> = {
 export function StateBadge({ state }: { state: string }) {
   return <span className={`badge ${STATE_COLORS[state] ?? ''}`}>{state.replace(/_/g, ' ')}</span>;
 }
+
+/** The DownTube mark: white "DT" on a red rounded square (same artwork as /favicon.svg). */
+export function LogoMark({ size = 28, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" focusable="false" className={`shrink-0 ${className}`}>
+      <rect width="64" height="64" rx="14" fill="#e11d48" />
+      <path fill="#fff" fillRule="evenodd" d="M8 17H17A13 15 0 0 1 17 47H8ZM16 25V39H17A6 7 0 0 0 17 25Z" />
+      <path fill="#fff" d="M34 17H56V25H49V47H41V25H34Z" />
+    </svg>
+  );
+}

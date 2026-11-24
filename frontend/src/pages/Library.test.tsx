@@ -11,7 +11,7 @@ const item = (over: Partial<MediaFileOut> = {}): MediaFileOut => ({
   id: 1, video_id: 'dQw4w9WgXcQ', title: 'Liked Video', channel_id: 'UC1', channel_title: 'Chan', thumbnail_url: null,
   url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', rel_path: 'Chan/x.mp4', container: 'mp4', width: 1920, height: 1080,
   fps: 30, vcodec: 'avc1', acodec: 'mp4a', duration_s: 60, size_bytes: 1000, is_hdr: false, source_format_id: '137+140',
-  max_height_requested: 2160, created_at: '2026-01-01T00:00:00Z', sources: ['like'], ...over,
+  max_height_requested: 2160, created_at: '2026-01-01T00:00:00Z', published_at: '2025-06-15T12:00:00Z', sources: ['like'], ...over,
 });
 
 const channels = http.get('/api/library/channels', () => HttpResponse.json([
@@ -95,3 +95,19 @@ describe('LibraryPage delete', () => {
   });
 });
 
+describe('LibraryPage release dates', () => {
+  it('sorts by release date by default and can switch to date downloaded', async () => {
+    const queries: string[] = [];
+    server.use(channels, http.get('/api/library', ({ request }) => {
+      const u = new URL(request.url);
+      queries.push(`${u.searchParams.get('sort')}:${u.searchParams.get('order')}`);
+      return library([item()])();
+    }));
+    const user = userEvent.setup();
+    renderPage(<LibraryPage />);
+    expect(await screen.findByText(/Released/)).toHaveTextContent(new Date('2025-06-15T12:00:00Z').toLocaleDateString());
+    expect(queries[0]).toBe('published:desc');
+    await user.selectOptions(screen.getByLabelText('Sort by'), 'downloaded');
+    await waitFor(() => expect(queries.at(-1)).toBe('downloaded:desc'));
+  });
+});

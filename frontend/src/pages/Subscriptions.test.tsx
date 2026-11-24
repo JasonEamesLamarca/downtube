@@ -78,4 +78,38 @@ describe('SubscriptionsPage', () => {
     expect(await screen.findByText('Unsubscribed')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Unsubscribe from Channel One' })).not.toBeInTheDocument();
   });
+
+  it('deletes an unsubscribed channel and keeps its archive', async () => {
+    let called = 0;
+    server.use(
+      http.get('/api/subscriptions', () => page([sub({ subscribed: false, archived_count: 7 })])),
+      http.post('/api/subscriptions/UC1/delete', () => {
+        called += 1;
+        return HttpResponse.json({ channel_id: 'UC1', title: 'Channel One', archived_kept: 7, jobs_cancelled: 0 });
+      }),
+    );
+    const user = userEvent.setup();
+    renderPage(<SubscriptionsPage />);
+    await user.click(await screen.findByRole('button', { name: 'Delete Channel One' }));
+    const dialog = await screen.findByRole('dialog', { name: /delete channel one/i });
+    expect(dialog).toHaveTextContent('Videos already archived (7) stay in your library');
+    expect(dialog).toHaveTextContent('subscribe to the channel again');
+    await user.click(screen.getByRole('button', { name: 'Delete subscription' }));
+    await waitFor(() => expect(called).toBe(1));
+    expect(await screen.findByRole('status')).toHaveTextContent('Deleted Channel One. 7 archived videos kept in your library.');
+  });
+
+  it('has no delete button while still subscribed and filters by subscription state', async () => {
+    const seen: (string | null)[] = [];
+    server.use(http.get('/api/subscriptions', ({ request }) => {
+      seen.push(new URL(request.url).searchParams.get('subscribed'));
+      return page([sub()]);
+    }));
+    const user = userEvent.setup();
+    renderPage(<SubscriptionsPage />);
+    await screen.findByText('Channel One');
+    expect(screen.queryByRole('button', { name: 'Delete Channel One' })).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Filter by subscription'), 'false');
+    await waitFor(() => expect(seen.at(-1)).toBe('false'));
+  });
 });

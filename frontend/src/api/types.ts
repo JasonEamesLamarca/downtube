@@ -173,7 +173,8 @@ export interface MediaFileOut {
   is_hdr: boolean;
   source_format_id: string | null;
   max_height_requested: number | null;
-  created_at: string;
+  created_at: string; // when the file was archived
+  published_at: string | null; // YouTube release date
   sources: Source[];
 }
 
@@ -292,6 +293,8 @@ export interface DeleteVideoResult {
   warnings: string[];
 }
 export interface SidecarResult { written: number; skipped: number; failed: number }
+export interface ReleaseDateResult { checked: number; from_youtube: number; from_files: number; archived_missing: number; error: string | null }
+export interface SubscriptionDeleteResult { channel_id: string; title: string; archived_kept: number; jobs_cancelled: number }
 
 export interface ImportFileOut {
   name: string;
