@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-27
+
+### Changed
+- **Most compatible codec first.** At the chosen resolution, DownTube now prefers
+  H.264 > VP9 > AV1 > HEVC (was VP9 > AV1 > H.264). Videos at 1080p and below are archived as
+  H.264/AAC MP4, which plays everywhere, including Safari on iPhone. Above 1080p YouTube offers no
+  H.264, so those stay VP9 or AV1. Resolution, frame rate and the other quality rules are unchanged.
+  Files already archived are not re-downloaded.
+
+### Removed
+- The **Compatibility profile** setting (`compatibility_profile` in `/api/settings`); its behaviour
+  is now the only codec ranking. A stored value is ignored. Sending the field to
+  `PUT /api/settings` now returns 422, so reload any Settings page opened before the upgrade.
+
 ## [0.5.0] - 2026-11-24
 
 ### Added

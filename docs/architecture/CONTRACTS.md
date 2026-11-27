@@ -62,7 +62,7 @@ def browse(path: str | None) -> BrowseResult
 def parse_formats(info: dict) -> list[Fmt]
 def effective_cap(requested: int | None) -> int           # None → 2160; min(requested, 2160)
 def short_side(f: Fmt) -> int                              # min(width, height); portrait-safe
-def select_formats(fmts, cap, *, audio_pref, prefer_hdr, compat_profile, mkv_fallback) -> Selection | Unsupported
+def select_formats(fmts, cap, *, audio_pref, prefer_hdr, mkv_fallback) -> Selection | Unsupported
 def best_available_height(fmts, cap=2160) -> int | None
 
 # downloads/adapter.py (download agent)
@@ -152,8 +152,8 @@ def refresh_stale_metadata(max_age_days=25)               # API data retention: 
 2. Choose the **highest short-side ≤ cap** among original video streams (DRM formats excluded).
    Never upscale, never re-encode, never alter fps; ffmpeg only stream-copies (`-c copy`).
 3. Within that resolution: prefer non-HDR unless `prefer_hdr`; then higher fps; then codec
-   `avc1 > vp9 > av01 > hevc` if `compat_profile`, otherwise `vp9 > av01 > avc1 > hevc` by
-   bitrate within the same resolution — *never* trade resolution for codec.
+   `avc1 > vp9 > av01 > hevc` (most compatible first; since 0.6.0, no setting), then bitrate
+   within the same resolution — *never* trade resolution for codec.
 4. Audio: original-language track (`language_preference` / "original" note) first; then
    `audio_preference` (`aac`=mp4a, `opus`) highest abr; fall back to the other codec.
 5. MP4-compatible video codecs: avc1, hev1/hvc1, vp09/vp9, av01. Audio: mp4a, opus, ac-3, ec-3, flac (mp4a/opus preferred).

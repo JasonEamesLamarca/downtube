@@ -270,7 +270,6 @@ export default function SettingsPage() {
             </select>
           </Field>
           {check('prefer_hdr', 'Prefer HDR streams when available at the chosen resolution')}
-          {check('compatibility_profile', 'Compatibility profile: prefer H.264/AAC (good for Direct Play) at the same resolution', 'Never lowers resolution to gain compatibility.')}
           {check('mkv_fallback', 'Allow MKV when no MP4-compatible streams exist at the best resolution')}
           {check('keep_superseded_copies', 'Keep the old file (renamed .superseded) when a higher quality version replaces it')}
         </Section>

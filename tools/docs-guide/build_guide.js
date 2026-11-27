@@ -16,7 +16,7 @@ const {
 
 const REPO = path.resolve(__dirname, "..", "..");
 const IMG = (p) => path.join(REPO, "docs", "images", p);
-const VERSION = "0.4.4";
+const VERSION = "0.6.0";
 const DATE = "November 2026";
 
 const FONT = "Calibri";
@@ -203,7 +203,7 @@ BUL([
 H2("What it does, in one picture");
 IMAGE("diagrams/pipeline.png", "From a like or a new upload to a validated MP4 file in the archive.");
 H2("Status");
-P(`Version ${VERSION} is in production use on a Synology NAS behind the DSM reverse proxy with a Let's Encrypt certificate. Real Google sign-in (OAuth with PKCE) and the YouTube Data API have been verified live: sign-in and allowlist refusal, subscription sync (234 channels for 10 quota units), likes baseline, archiving of hundreds of subscription videos, and resuming interrupted downloads across an upgrade. Version 0.3.0 added deleting videos from the library, unsubscribing from channels, and description files for media servers. Version 0.4.0 lets you archive age-restricted and other sign-in-only videos by downloading them yourself and importing the file.`);
+P(`Version ${VERSION} is in production use on a Synology NAS behind the DSM reverse proxy with a Let's Encrypt certificate. Real Google sign-in (OAuth with PKCE) and the YouTube Data API have been verified live: sign-in and allowlist refusal, subscription sync (234 channels for 10 quota units), likes baseline, archiving of hundreds of subscription videos, and resuming interrupted downloads across an upgrade. Version 0.3.0 added deleting videos from the library, unsubscribing from channels, and description files for media servers. Version 0.4.0 lets you archive age-restricted and other sign-in-only videos by downloading them yourself and importing the file. Version 0.6.0 picks the most compatible codec, so videos at 1080p and below are archived as H.264 and play on every device, including iPhone.`);
 
 // ---- 2. How it works
 H1("2. How it works");
@@ -494,7 +494,7 @@ NUM([
   "In Plex, **Add Library**, type **Movies** (with the Plex NFO agent) or **Other Videos**, folder `/volume1/video/DownTube`.",
   "Under **Advanced**, enable automatic scanning and partial scans on change.",
   "For videos archived before 0.3.0, run **Settings > Media server files > Write .nfo files for videos already archived** once, then refresh the Plex library metadata.",
-  "Some clients cannot play 4K VP9 or AV1 directly and Plex transcodes, which is slow on a NAS CPU. Settings > Quality & formats > _Compatibility profile_ prefers H.264/AAC at the same resolution (YouTube offers H.264 only up to 1080p).",
+  "DownTube picks the most compatible codec at the chosen resolution: videos at 1080p and below are archived as H.264/AAC, which every client plays directly. Above 1080p YouTube offers only VP9 or AV1; some clients cannot play those and Plex transcodes, which is slow on a NAS CPU. Set a 1080p limit on a rule to get H.264 for all of its videos.",
 ]);
 
 // ---- 5. Operations

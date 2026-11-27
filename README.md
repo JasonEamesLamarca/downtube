@@ -30,6 +30,8 @@ interrupted downloads have been verified live. Current release: see the [CHANGEL
   - hard cap at 4K (2160p, measured on the short side, so portrait video counts correctly);
   - never upscales;
   - never re-encodes video; ffmpeg only stream-copies;
+  - most compatible codec at the chosen resolution: H.264 up to 1080p (plays everywhere, including
+    iPhone), VP9 or AV1 above 1080p, where YouTube offers no H.264;
   - MP4 by default, with an optional MKV fallback when no MP4-compatible combination exists;
   - AAC audio by default, with Opus available as an option.
 - **Validation before publication.** Each download is checked with ffprobe (container,
@@ -125,7 +127,8 @@ data and can be regenerated with the tools in [tools/](tools/docs-screenshots/RE
 - **Bot checks.** YouTube sometimes asks yt-dlp to prove it is not a bot. Some server IP
   addresses are blocked more often than others. These downloads are retried with long backoff.
 - **H.264 tops out at 1080p on YouTube.** Resolutions above 1080p (up to 4K) are only
-  available as VP9 or AV1. These are stored in MP4 and some Plex clients will transcode them.
+  available as VP9 or AV1. These are stored in MP4; some clients (Safari on iPhone, some Plex
+  clients) cannot play them directly. Set a 1080p limit to get H.264 everywhere.
   See [docs/quality-policy.md](docs/quality-policy.md#5-mp4-compatibility).
 - **Google OAuth redirect URIs cannot be raw IP addresses.** Use `localhost` with an SSH
   tunnel (not possible on Synology DSM, which forbids TCP forwarding), or an HTTPS hostname

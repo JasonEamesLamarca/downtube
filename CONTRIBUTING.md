@@ -95,7 +95,7 @@ these invariants true. Each one has tests; a pull request that breaks one will n
 2. Never upscale: the output height never exceeds the source stream height.
 3. Never re-encode video. ffmpeg uses stream copy only.
 4. Resolution is never traded for codec, HDR or audio preference. Those only break ties
-   at the same resolution.
+   at the same resolution, where the most compatible codec wins (H.264 > VP9 > AV1 > HEVC).
 5. DRM-protected formats are never selected.
 6. MP4 is the default container. MKV is used only when `mkv_fallback` is enabled and no
    MP4-compatible combination exists at the best resolution.

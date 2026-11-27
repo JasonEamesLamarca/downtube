@@ -222,7 +222,6 @@ export interface SettingsOut {
   default_max_height: ResolutionCap;
   audio_preference: 'aac' | 'opus';
   prefer_hdr: boolean;
-  compatibility_profile: boolean;
   mkv_fallback: boolean;
   max_concurrent_downloads: number;
   bandwidth_limit_kbps: number | null;

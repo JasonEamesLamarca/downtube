@@ -271,7 +271,6 @@ The full rules, including codec and audio choices, are in [quality-policy.md](qu
 | Container | MP4 | Stream copy into MP4. |
 | MKV fallback | Off | If no MP4-compatible streams exist at the chosen resolution, store as MKV instead of skipping. |
 | Audio preference | AAC | AAC is the default. Choose Opus for Opus audio when the source provides it. |
-| Compatibility profile | Off | Prefers H.264/AAC at the same resolution (H.264 stops at 1080p on YouTube). |
 | Prefer HDR | Off | Prefers HDR streams at the same resolution. |
 | Keep superseded copies | On | When an upgrade replaces a file, keep the old one as `*.superseded.mp4`. |
 

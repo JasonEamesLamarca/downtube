@@ -527,7 +527,6 @@ class DownloadManager:
             max_height,
             audio_pref=st.audio_preference,
             prefer_hdr=st.prefer_hdr,
-            compat_profile=st.compatibility_profile,
             mkv_fallback=st.mkv_fallback,
         )
         with write_session() as s:
