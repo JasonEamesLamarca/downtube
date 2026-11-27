@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import select
 
 from downtube.db import read_session, write_session
-from downtube.downloads import jobs
+from downtube.downloads import bot_guard, jobs
 from downtube.downloads.adapter import Cancelled, DownloadError, Progress
 from downtube.downloads.manager import DownloadManager, backoff_seconds, in_download_window, recover_on_startup
 from downtube.downloads.policy import Selection
@@ -312,3 +312,52 @@ def test_backoff_bounds():
     assert 96 <= backoff_seconds(1, "network") <= 144
     assert backoff_seconds(20, "network") <= 6 * 3600 * 1.2
     assert backoff_seconds(1, "bot_check") >= 1800
+
+
+# --------------------------------------------------------------------------- bot-check pause
+
+
+def bot_error():
+    return DownloadError("bot_check", "Sign in to confirm you're not a bot", True)
+
+
+def test_bot_check_pauses_all_downloads_and_keeps_the_attempt(mgr):
+    _, jid = seed()
+    m = mgr(FakeAdapter(error=bot_error()))
+    assert m.run_once() == jid
+    job = get_job(jid)
+    assert job.status == JobStatus.queued and job.error_code == "bot_check"
+    assert job.attempts == 0  # a block on the IP never uses up the job's retries
+    with read_session() as s:
+        until, strikes = bot_guard.status(s, datetime.now(UTC))
+    assert strikes == 1 and until is not None
+    assert timedelta(minutes=26) < until - datetime.now(UTC) < timedelta(minutes=34)
+    # Another job that is due now still waits: the whole queue is paused.
+    with write_session() as s:
+        get = s.get(DownloadJob, jid)
+        get.next_attempt_at = None
+    assert m.claim() is None
+    assert m.claim(now=until + timedelta(seconds=1)) == jid
+
+
+def test_bot_check_pause_escalates_and_success_resets(mgr):
+    t0 = datetime(2026, 1, 1, tzinfo=UTC)
+    with write_session() as s:
+        first = bot_guard.record_bot_check(s, t0)
+        # While paused, more checks (other workers) do not escalate.
+        assert bot_guard.record_bot_check(s, t0 + timedelta(minutes=1)) == first
+        second = bot_guard.record_bot_check(s, first + timedelta(seconds=1))
+        assert bot_guard.status(s, second - timedelta(seconds=1))[1] == 2
+        assert second - first > timedelta(minutes=50)  # ~60 min
+        bot_guard.record_success(s)
+        assert bot_guard.status(s, t0) == (None, 0)
+    assert bot_guard.pause_seconds(20) == bot_guard.MAX_PAUSE_S
+
+
+def test_successful_probe_clears_bot_pause(mgr):
+    _, jid = seed()
+    with write_session() as s:
+        bot_guard.record_bot_check(s, datetime(2020, 1, 1, tzinfo=UTC))  # expired pause, strikes=1
+    assert mgr(FakeAdapter()).run_once() == jid
+    with read_session() as s:
+        assert bot_guard.status(s, datetime.now(UTC)) == (None, 0)

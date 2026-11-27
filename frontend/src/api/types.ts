@@ -70,6 +70,8 @@ export interface Dashboard {
   downloads_pending: number;
   downloads_failed: number;
   current_speed_bps: number;
+  downloads_paused_until?: string | null;
+  bot_checks_in_a_row?: number;
   storage: StorageInfo;
   quota: QuotaInfo;
   likes_mode: LikesMode;

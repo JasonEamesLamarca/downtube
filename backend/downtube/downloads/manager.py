@@ -33,7 +33,7 @@ from sqlalchemy import select, update
 from downtube import runtime_status
 from downtube.config import get_config
 from downtube.db import read_session, write_session
-from downtube.downloads import jobs
+from downtube.downloads import bot_guard, jobs
 from downtube.downloads.adapter import Cancelled, DownloaderAdapter, DownloadError, Progress, YtDlpAdapter
 from downtube.downloads.policy import (
     Selection,
@@ -446,6 +446,8 @@ class DownloadManager:
             st = get_settings(s)
             if not in_download_window(st.download_window, st.timezone, now):
                 return None
+            if bot_guard.paused_until(s, now) is not None:  # YouTube bot check: everything waits
+                return None
             job = s.scalar(
                 select(DownloadJob)
                 .where(
@@ -518,6 +520,8 @@ class DownloadManager:
 
         # 1) probe + format selection (policy is pure; see policy.py)
         info = self.adapter.probe(video_id)
+        with write_session() as s:
+            bot_guard.record_success(s)
         self._check_stop(job_id, ev)
         fmts = parse_formats(info)
         best = best_available_height(fmts)
@@ -710,6 +714,14 @@ class DownloadManager:
                 v = s.get(Video, job.video_id)
                 if v is not None:
                     v.availability = Availability.private if "private" in message.lower() else Availability.deleted
+            elif code == "bot_check":
+                # The block is on the server's IP, not this video: pause the whole queue and give
+                # the attempt back, so a long block never fails jobs permanently.
+                until = bot_guard.record_bot_check(s, utcnow())
+                job.status, job.stage = JobStatus.queued, JobStage.pending
+                job.attempts = max(job.attempts - 1, 0)
+                job.next_attempt_at = until
+                log.warning("YouTube bot check: all downloads paused until %s", until.isoformat(timespec="minutes"))
             elif retryable and job.attempts < limit:
                 job.status, job.stage = JobStatus.queued, JobStage.pending
                 job.next_attempt_at = utcnow() + timedelta(seconds=backoff_seconds(job.attempts, code))

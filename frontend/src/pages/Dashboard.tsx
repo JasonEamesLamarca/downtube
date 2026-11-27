@@ -37,6 +37,16 @@ export default function DashboardPage() {
         Account: {d.account_email ?? 'not connected'} ({d.account_status.replace(/_/g, ' ')}). Likes mode: {d.likes_mode.replace(/_/g, ' ')}.
         Last likes sync: {formatRelative(d.last_likes_sync)}.
       </p>
+      {d.downloads_paused_until && (
+        <p role="alert" className="mb-4 flex items-start gap-2 rounded-sm border border-amber-300 p-3 text-sm text-amber-800 dark:border-amber-700 dark:text-amber-300">
+          <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden />
+          <span>
+            YouTube asked this server to confirm it is not a bot, so all downloads are paused. They resume {formatRelative(d.downloads_paused_until)}.
+            {(d.bot_checks_in_a_row ?? 0) > 1 && <> It has happened {d.bot_checks_in_a_row} times in a row, and each pause is twice as long, up to 12 hours.</>}
+            {' '}Queued videos are kept and will continue automatically.
+          </span>
+        </p>
+      )}
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Archived videos" value={d.archived_videos} />
         <Stat label="Archive size" value={formatBytes(d.archive_bytes)} />

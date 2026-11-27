@@ -113,6 +113,8 @@ class Dashboard(ApiModel):
     downloads_pending: int
     downloads_failed: int
     current_speed_bps: float
+    downloads_paused_until: datetime | None = None  # YouTube bot check: all downloads wait until then
+    bot_checks_in_a_row: int = 0
     storage: StorageInfo
     quota: QuotaInfo
     likes_mode: LikesModeT

@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from downtube.api.views import quota_info, storage_info, user_video_ids
 from downtube.auth.deps import current_user, request_db
+from downtube.downloads import bot_guard
+from downtube.downloads.manager import utcnow
 from downtube.models import (
     AccountStatus,
     ArchiveMode,
@@ -66,6 +68,7 @@ def dashboard(user: User = Depends(current_user), db: Session = Depends(request_
             SyncRun.user_id == user.id, SyncRun.kind.in_(("likes", "likes_full")), SyncRun.status == SyncStatus.ok
         )
     )
+    paused_until, bot_checks = bot_guard.status(db, utcnow())
     recent = db.scalars(select(SyncRun).where(SyncRun.user_id == user.id).order_by(SyncRun.id.desc()).limit(10)).all()
     return Dashboard(
         account_email=acc.email if acc else user.email,
@@ -78,6 +81,8 @@ def dashboard(user: User = Depends(current_user), db: Session = Depends(request_
         downloads_pending=jobs_with(JobStatus.queued, JobStatus.paused),
         downloads_failed=jobs_with(JobStatus.failed),
         current_speed_bps=float(speed or 0.0),
+        downloads_paused_until=paused_until,
+        bot_checks_in_a_row=bot_checks,
         storage=storage_info(db),
         quota=quota_info(),
         likes_mode=get_value(db, "likes_mode"),
