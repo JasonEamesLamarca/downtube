@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends
@@ -10,10 +11,19 @@ from sqlalchemy.orm import Session
 from downtube.api.views import PageParams, job_out, user_video_ids
 from downtube.auth.deps import current_user, request_db, require_acknowledged
 from downtube.db import read_session, write_session
-from downtube.downloads import jobs
+from downtube.downloads import bot_guard, jobs
 from downtube.main import ApiError
-from downtube.models import DiscoverySource, DownloadJob, JobStatus, User, Video, VideoExclusion, VideoSource
-from downtube.schemas import JobCounts, JobOut, ManualEnqueueRequest, Page
+from downtube.models import (
+    AuditEvent,
+    DiscoverySource,
+    DownloadJob,
+    JobStatus,
+    User,
+    Video,
+    VideoExclusion,
+    VideoSource,
+)
+from downtube.schemas import BotCheckRetryOut, JobCounts, JobOut, ManualEnqueueRequest, Page
 from downtube.sync import common
 from downtube.youtube.client import AuthRevoked, QuotaExceeded, YouTubeError, client_for_user
 from downtube.youtube.parse import video_from_api
@@ -105,6 +115,20 @@ def _action(job_id: int, user: User, fn) -> JobOut:  # type: ignore[no-untyped-d
         except jobs.JobStateError as e:
             raise ApiError(409, "invalid_state", str(e)) from e
         return job_out(job)
+
+
+@router.post("/downloads/bot-check/retry-now", response_model=BotCheckRetryOut)
+def bot_check_retry_now(user: User = Depends(current_user)) -> BotCheckRetryOut:
+    """End a YouTube bot-check pause early. If YouTube still refuses, the queue pauses again for
+    the same time as before (never longer because of a manual retry)."""
+    with write_session() as s:
+        resumed = bot_guard.retry_now(s, datetime.now(UTC))
+        if resumed:
+            s.add(AuditEvent(user_id=user.id, action="downloads.bot_check_retry", detail={}))
+    if resumed:
+        log.info("bot-check pause ended early by user %s", user.id)
+        jobs.wake()
+    return BotCheckRetryOut(resumed=resumed)
 
 
 @router.post("/downloads/{job_id}/retry", response_model=JobOut)

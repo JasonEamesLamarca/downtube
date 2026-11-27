@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-11-27
+
+### Added
+- **Try again now** on the Dashboard while downloads are paused by a YouTube bot check
+  (`POST /api/downloads/bot-check/retry-now`). It ends the pause and makes the held videos due
+  immediately. If YouTube still refuses, the queue pauses again for the same time as before: a
+  manual retry never makes the wait longer.
+
 ## [0.6.1] - 2026-11-27
 
 ### Fixed

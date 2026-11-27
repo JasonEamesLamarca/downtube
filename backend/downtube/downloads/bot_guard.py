@@ -19,9 +19,10 @@ import random
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
-from downtube.models import Setting
+from downtube.models import DownloadJob, JobStatus, Setting
 
 KEY = "bot_check_pause"
 BASE_PAUSE_S = 30 * 60
@@ -79,3 +80,22 @@ def record_success(s: Session) -> None:
 def status(s: Session, now: datetime) -> tuple[datetime | None, int]:
     """(pause end or None, consecutive bot checks) for the dashboard."""
     return paused_until(s, now), int(_state(s).get("strikes", 0))
+
+
+def retry_now(s: Session, now: datetime) -> bool:
+    """End the current pause early (user clicked "Try again now").
+
+    The escalation level steps back by one, so if YouTube still answers with a bot check the new
+    pause is as long as the one just cancelled: retrying by hand never makes the wait longer.
+    Jobs held back by the pause become due immediately. Returns False when nothing was paused.
+    """
+    if paused_until(s, now) is None:
+        return False
+    st = _state(s)
+    _save(s, {"strikes": max(int(st.get("strikes", 1)) - 1, 0), "since": st.get("since")})
+    s.execute(
+        update(DownloadJob)
+        .where(DownloadJob.status == JobStatus.queued, DownloadJob.error_code == "bot_check")
+        .values(next_attempt_at=None)
+    )
+    return True
