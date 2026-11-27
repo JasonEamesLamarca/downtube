@@ -341,7 +341,6 @@ class SettingsOut(ApiModel):
     default_max_height: ResolutionCap
     audio_preference: Literal["aac", "opus"]
     prefer_hdr: bool
-    compatibility_profile: bool  # prefer streams likely to Direct Play (H.264/AAC) at the SAME resolution
     mkv_fallback: bool
     max_concurrent_downloads: int = Field(ge=1, le=8)
     bandwidth_limit_kbps: int | None = Field(default=None, ge=64)  # None = unlimited
@@ -371,7 +370,6 @@ class SettingsUpdate(ApiModel):
     default_max_height: ResolutionCap = None
     audio_preference: Literal["aac", "opus"] | None = None
     prefer_hdr: bool | None = None
-    compatibility_profile: bool | None = None
     mkv_fallback: bool | None = None
     max_concurrent_downloads: int | None = Field(default=None, ge=1, le=8)
     bandwidth_limit_kbps: int | None = Field(default=None, ge=0)  # 0 = unlimited

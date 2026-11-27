@@ -65,16 +65,19 @@ Codec only breaks ties **within one resolution**.
 | AV1 | `av01`, `av1` | Yes |
 | VP8 | `vp8` | No (not in MP4 allow-list) |
 
-Rank order:
+Rank order (best first): **H.264 > VP9 > AV1 > HEVC** — the most compatible codec wins.
 
-| Profile | Order (best first) |
-|---|---|
-| Default (quality) | VP9 > AV1 > H.264 > HEVC |
-| Compatibility profile on | H.264 > VP9 > AV1 > HEVC |
+H.264 with AAC in MP4 plays on every phone (including Safari on iPhone), browser, smart TV and
+Plex client without transcoding. VP9 is widely decoded but not by Safari on iOS; AV1 needs recent
+hardware; HEVC is rarely offered by YouTube and not decoded by every browser.
 
-YouTube offers H.264 only up to 1080p. Above that, a stream is VP9 or AV1, whatever the
-profile says. The compatibility profile therefore never lowers the resolution to get H.264:
-a 2160p source is still archived as VP9 or AV1 under that profile.
+YouTube offers H.264 only up to 1080p, so in practice **videos at 1080p and below are archived as
+H.264**. Above 1080p a stream is VP9 or AV1, and the ranking never lowers the resolution to get
+H.264: a 2160p source is archived as VP9 (or AV1 if no VP9 exists). Set a 1080p limit on a rule
+if you want H.264 for every video it archives.
+
+Since 0.6.0 this ranking is fixed. The earlier quality ranking (VP9 > AV1 > H.264) and the
+`compatibility_profile` setting that switched between the two were removed.
 
 ## 4. Audio
 
@@ -101,15 +104,12 @@ MP4 audio allow-list: `mp4a`/AAC, Opus, AC-3, E-AC-3, FLAC, MP3.
 - **MKV fallback** (`mkv_fallback`, default off) is used only when no MP4-compatible combination
   exists at the best resolution. It is recorded as container `mkv`. It is never used to reach a higher resolution.
 
-## 6. Compatibility profile
+## 6. Compatibility first
 
-`compatibility_profile` (default off) changes two things only:
-
-1. Codec ranking within a resolution: H.264 first (see §3).
-2. Nothing else. It does not lower resolution, change the container, or change audio rules.
-
-Use it if your media clients struggle with VP9 or AV1 and your library is mostly 1080p or below.
-For 4K sources, DownTube still archives VP9 or AV1.
+Codec choice favours playback compatibility (see §3) but only ever breaks ties at the best
+resolution. It does not lower resolution, change frame rate, change the container or change the
+audio rules. Files archived before 0.6.0 at 1080p or below may be VP9; they are not re-downloaded
+automatically.
 
 ## 7. Validation
 
@@ -184,13 +184,12 @@ short side of 1080 or less.
 
 ## 11. Worked example: a 4K-capable video
 
-Source offers 2160p VP9 (video-only, 60 fps), 2160p AV1, 1080p H.264 and 1080p AAC audio. Rule: best available,
-compatibility profile off.
+Source offers 2160p VP9 (video-only, 60 fps), 2160p AV1, 1080p H.264 and 1080p AAC audio. Rule: best available.
 
 1. Cap = 2160.
 2. Best resolution = 2160p.
-3. Tier ordering: 60 fps VP9 is first (higher fps before codec rank).
+3. Tier ordering: 60 fps VP9 is first (higher fps before codec rank; no H.264 exists at 2160p).
 4. VP9 is MP4-compatible and video-only, so the best audio track is chosen (original language, then AAC).
 5. Result: MP4 with 2160p VP9 video and AAC audio, stream copy.
 
-The same video with the compatibility profile on still gets 2160p VP9, because H.264 stops at 1080p.
+The same video under a 1080p limit is archived as 1080p H.264 with AAC audio.

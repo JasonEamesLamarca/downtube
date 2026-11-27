@@ -29,7 +29,6 @@ def defaults() -> dict[str, Any]:
         "default_max_height": None,
         "audio_preference": "aac",
         "prefer_hdr": False,
-        "compatibility_profile": False,
         "mkv_fallback": False,
         "max_concurrent_downloads": 2,
         "bandwidth_limit_kbps": None,

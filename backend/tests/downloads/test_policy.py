@@ -54,14 +54,20 @@ def test_prefers_60fps_at_same_resolution():
 
 
 def test_codec_preference_never_lowers_resolution():
-    # H.264 tops out at 1080p; compat profile must still pick the 4K VP9/AV1 stream.
-    s = sel(ladder(2160), 2160, compat_profile=True)
+    # H.264 tops out at 1080p; the H.264-first ranking must still pick the 4K VP9/AV1 stream.
+    s = sel(ladder(2160), 2160)
     assert s.height == 2160 and s.video.vfamily in ("vp9", "av1")
 
 
-def test_compat_profile_prefers_h264_at_equal_resolution():
-    assert sel(ladder(1080), 1080, compat_profile=True).video.vfamily == "avc1"
-    assert sel(ladder(1080), 1080, compat_profile=False).video.vfamily == "vp9"
+def test_prefers_h264_at_equal_resolution():
+    for cap in (1080, 720, 480):
+        assert sel(ladder(1080), cap).video.vfamily == "avc1"
+
+
+def test_vp9_before_av1_when_no_h264():
+    info = ladder(2160)
+    s = sel(info, 2160)
+    assert s.video.vfamily == "vp9"
 
 
 def test_audio_preference_aac_default_and_opus_option():

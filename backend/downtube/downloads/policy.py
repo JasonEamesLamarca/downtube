@@ -242,20 +242,20 @@ def summarize_formats(fmts: list[Fmt]) -> list[dict[str, Any]]:
 
 # ----------------------------------------------------------------------------- selection
 
-_CODEC_RANK_COMPAT = {"avc1": 0, "vp9": 1, "av1": 2, "hevc": 3}
-_CODEC_RANK_QUALITY = {"vp9": 0, "av1": 1, "avc1": 2, "hevc": 3}
+# Most compatible first: H.264 plays on every phone, browser, TV and Plex client (YouTube offers it
+# up to 1080p); VP9 is widely decoded but not by Safari/iOS; AV1 needs recent hardware; HEVC last.
+CODEC_RANK = {"avc1": 0, "vp9": 1, "av1": 2, "hevc": 3}
 
 
-def _video_key(f: Fmt, *, prefer_hdr: bool, compat_profile: bool) -> tuple:  # type: ignore[type-arg]
+def _video_key(f: Fmt, *, prefer_hdr: bool) -> tuple:  # type: ignore[type-arg]
     """Sort key among streams of the SAME short-side resolution (lower = better)."""
-    ranks = _CODEC_RANK_COMPAT if compat_profile else _CODEC_RANK_QUALITY
     hdr_penalty = 0 if f.is_hdr == prefer_hdr else 1
     separate = 0 if not f.has_audio else 1  # video-only DASH streams carry the best quality
     return (
         hdr_penalty,
         -(f.fps or 0),
         separate,
-        ranks.get(f.vfamily, 9),
+        CODEC_RANK.get(f.vfamily, 9),
         -(f.vbr or f.tbr or 0),
     )
 
@@ -288,7 +288,6 @@ def select_formats(
     *,
     audio_pref: str = "aac",
     prefer_hdr: bool = False,
-    compat_profile: bool = False,
     mkv_fallback: bool = False,
 ) -> Selection | Unsupported:
     limit = effective_cap(cap)
@@ -310,7 +309,7 @@ def select_formats(
 
     tier = sorted(
         (f for f in within if short_side(f) == best_h),
-        key=lambda f: _video_key(f, prefer_hdr=prefer_hdr, compat_profile=compat_profile),
+        key=lambda f: _video_key(f, prefer_hdr=prefer_hdr),
     )
 
     # 1) Try an MP4-compatible combination at the best resolution.
