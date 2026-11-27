@@ -102,6 +102,10 @@ class SyncRunOut(ApiModel):
     error: str | None
 
 
+class BotCheckRetryOut(ApiModel):
+    resumed: bool  # False: downloads were not paused
+
+
 class Dashboard(ApiModel):
     account_email: str | None
     account_status: str

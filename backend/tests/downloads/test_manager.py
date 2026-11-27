@@ -361,3 +361,15 @@ def test_successful_probe_clears_bot_pause(mgr):
     assert mgr(FakeAdapter()).run_once() == jid
     with read_session() as s:
         assert bot_guard.status(s, datetime.now(UTC)) == (None, 0)
+
+
+def test_retry_now_makes_held_jobs_due(mgr):
+    _, jid = seed()
+    m = mgr(FakeAdapter(error=bot_error()))
+    m.run_once()
+    assert m.claim() is None  # paused
+    with write_session() as s:
+        assert bot_guard.retry_now(s, datetime.now(UTC)) is True
+        assert bot_guard.retry_now(s, datetime.now(UTC)) is False  # nothing left to end
+    assert get_job(jid).next_attempt_at is None
+    assert m.claim() == jid

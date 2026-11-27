@@ -23,6 +23,7 @@ export const endpoints = {
   backfillLikes: (confirm: boolean) => api<{ queued: number }>('/likes/backfill', { method: 'POST', body: { confirm } }),
   downloads: (q: Q) => api<T.Page<T.JobOut>>('/downloads', { query: q }),
   downloadCounts: () => api<T.JobCounts>('/downloads/counts'),
+  botCheckRetryNow: () => api<{ resumed: boolean }>('/downloads/bot-check/retry-now', { method: 'POST' }),
   enqueue: (b: T.ManualEnqueueRequest) => api<T.JobOut>('/downloads', { method: 'POST', body: b }),
   jobAction: (id: number, a: 'retry' | 'cancel' | 'pause' | 'resume') =>
     api<T.JobOut>(`/downloads/${id}/${a}`, { method: 'POST' }),

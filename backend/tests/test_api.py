@@ -583,3 +583,26 @@ def test_auth_me_and_acknowledge(client):
     assert me["acknowledged_terms"] is False and me["email"] == "owner@example.com" and me["is_admin"] is True
     assert client.post("/api/auth/acknowledge", headers=h).json()["acknowledged_terms"] is True
     assert httpx and Path
+
+
+def test_bot_check_retry_now_ends_pause_without_escalating(client, env):
+    from datetime import timedelta
+
+    from downtube.downloads import bot_guard
+
+    h = login(client)
+    assert client.post("/api/downloads/bot-check/retry-now", headers=h).json() == {"resumed": False}
+    now = datetime.now(UTC)
+    with write_session() as s:
+        bot_guard.record_bot_check(s, now - timedelta(hours=2))  # strike 1 (expired)
+        until = bot_guard.record_bot_check(s, now)  # strike 2: ~60 min
+    d = client.get("/api/dashboard", headers=h).json()
+    assert d["downloads_paused_until"] is not None and d["bot_checks_in_a_row"] == 2
+    assert client.post("/api/downloads/bot-check/retry-now", headers=h).json() == {"resumed": True}
+    d = client.get("/api/dashboard", headers=h).json()
+    assert d["downloads_paused_until"] is None
+    with write_session() as s:  # YouTube still refuses: same ~60 min pause again, not 120
+        again = bot_guard.record_bot_check(s, now)
+    assert timedelta(minutes=50) < until - now < timedelta(minutes=70)
+    assert timedelta(minutes=50) < again - now < timedelta(minutes=70)  # ~60 min (jitter ±10%)
+    assert client.post("/api/downloads/bot-check/retry-now").status_code in (401, 403)  # needs a session

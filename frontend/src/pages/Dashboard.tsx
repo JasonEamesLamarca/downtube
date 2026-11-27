@@ -20,6 +20,10 @@ export default function DashboardPage() {
     mutationFn: () => endpoints.syncLikes(false),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['dashboard'] }),
   });
+  const botRetry = useMutation({
+    mutationFn: endpoints.botCheckRetryNow,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['dashboard'] }),
+  });
   if (q.isLoading) return <Spinner />;
   if (q.error || !q.data) return <ErrorNote error={q.error ?? new Error('No data')} />;
   const d = q.data;
@@ -32,6 +36,8 @@ export default function DashboardPage() {
         <button className="btn btn-primary" onClick={() => sync.mutate()} disabled={sync.isPending}>Synchronize now</button>
       </PageHeader>
       <ErrorNote error={sync.error} />
+      <ErrorNote error={botRetry.error} />
+      {botRetry.isSuccess && !d.downloads_paused_until && <p role="status" className="mb-2 text-sm text-green-700 dark:text-green-400">Downloads resumed. The banner comes back if YouTube still refuses.</p>}
       {sync.isSuccess && <p role="status" className="mb-2 text-sm text-green-700 dark:text-green-400">Synchronization started.</p>}
       <p className="mb-4 text-sm text-slate-600 dark:text-slate-400">
         Account: {d.account_email ?? 'not connected'} ({d.account_status.replace(/_/g, ' ')}). Likes mode: {d.likes_mode.replace(/_/g, ' ')}.
@@ -40,11 +46,13 @@ export default function DashboardPage() {
       {d.downloads_paused_until && (
         <p role="alert" className="mb-4 flex items-start gap-2 rounded-sm border border-amber-300 p-3 text-sm text-amber-800 dark:border-amber-700 dark:text-amber-300">
           <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden />
-          <span>
+          <span className="flex-1">
             YouTube asked this server to confirm it is not a bot, so all downloads are paused. They resume {formatRelative(d.downloads_paused_until)}.
             {(d.bot_checks_in_a_row ?? 0) > 1 && <> It has happened {d.bot_checks_in_a_row} times in a row, and each pause is twice as long, up to 12 hours.</>}
             {' '}Queued videos are kept and will continue automatically.
+            {' '}If you think the block has cleared (for example after changing network or VPN), try again now; if YouTube still refuses, the pause starts again for the same time.
           </span>
+          <button className="btn shrink-0" onClick={() => botRetry.mutate()} disabled={botRetry.isPending}>Try again now</button>
         </p>
       )}
       <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
