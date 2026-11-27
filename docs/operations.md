@@ -141,7 +141,7 @@ contract, plus additional codes the downloader can emit.
 | `members_only` | Channel membership required | No | Job failed | If your account is a member: **Download myself** (see [Importing files](#importing-files-you-downloaded)). |
 | `age_restricted` | Age confirmation or sign-in required | No | Job failed | **Download myself** with your own signed-in account and import the file. |
 | `login_required` | YouTube asks for sign-in or cookies | No | Job failed | As above. DownTube itself never uses cookies. |
-| `bot_check` | YouTube asks the server to confirm it is not a bot | Yes, at least 30 minutes | Job queued with long backoff | Wait. Reduce concurrency. Try another network if it persists. |
+| `bot_check` | YouTube asks the server to confirm it is not a bot | Yes, never fails the job | **All** downloads pause: 30 min, doubling on each repeat up to 12 h; the Dashboard shows when they resume | Wait. The block is on your public IP address (other devices on the same connection are affected too); it usually clears after hours to a few days with little traffic. Reduce concurrency. |
 | `network` | Timeouts, resets, DNS or 5xx errors | Yes | Exponential backoff | Check connectivity. |
 | `http_429` | Too many requests | Yes | Backoff | Lower concurrency or bandwidth. |
 | `http_403` | Forbidden response from a media server | Yes | Backoff | Usually temporary. |

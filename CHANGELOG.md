@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-11-27
+
+### Fixed
+- **YouTube bot checks no longer keep the IP address flagged.** A "confirm you're not a bot"
+  answer used to delay only that one video, so the worker moved on to the next one and asked
+  YouTube again every few seconds (thousands of times a day), which kept the block alive. Now one
+  bot check pauses **all** downloads for 30 minutes, doubling on each repeat up to 12 hours; any
+  successful request resets it. The pause survives restarts and is shown on the Dashboard
+  (`Dashboard.downloads_paused_until`, `bot_checks_in_a_row`).
+- A bot check no longer uses up a job's attempts, so a long block never fails jobs permanently.
+  Jobs that failed with `bot_check` before 0.6.1 can be retried from the Downloads page.
+
 ## [0.6.0] - 2026-11-27
 
 ### Changed

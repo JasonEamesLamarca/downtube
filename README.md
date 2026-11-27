@@ -124,8 +124,9 @@ data and can be regenerated with the tools in [tools/](tools/docs-screenshots/RE
 - **Likes history is limited by the API.** The YouTube Data API returns only the newest
   1000 liked videos. DownTube polls frequently and keeps what it has seen, but likes that
   fall outside the newest 1000 cannot be enumerated again.
-- **Bot checks.** YouTube sometimes asks yt-dlp to prove it is not a bot. Some server IP
-  addresses are blocked more often than others. These downloads are retried with long backoff.
+- **Bot checks.** YouTube sometimes asks yt-dlp to prove it is not a bot. The block applies to
+  your public IP address, so DownTube pauses all downloads (30 minutes, doubling up to 12 hours)
+  instead of trying the next video, and resumes on its own. No job fails because of it.
 - **H.264 tops out at 1080p on YouTube.** Resolutions above 1080p (up to 4K) are only
   available as VP9 or AV1. These are stored in MP4; some clients (Safari on iPhone, some Plex
   clients) cannot play them directly. Set a 1080p limit to get H.264 everywhere.
