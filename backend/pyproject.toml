@@ -22,7 +22,7 @@ dev = [
   "pytest>=9.2",
   "pytest-cov>=7.1",
   "respx>=0.23",
-  "ruff>=0.17",
+  "ruff>=0.17.6",
   "mypy>=2.4",
   "pip-audit>=2.7",
 ]
